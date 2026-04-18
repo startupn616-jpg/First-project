@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node src/seed.js)",
+      "Bash(node -e ' *)",
+      "Bash(grep -v \"^$\")"
+    ]
+  }
+}
