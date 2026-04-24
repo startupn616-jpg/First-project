@@ -14,7 +14,11 @@ const login = async (req, res) => {
       .eq('username', username.trim().toLowerCase())
       .single();
 
-    if (error || !user)
+    if (error) {
+      console.error('DB error during login:', error.message);
+      return res.status(500).json({ success: false, message: 'Database connection error. Check Supabase credentials.' });
+    }
+    if (!user)
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
 
     const isMatch = await bcrypt.compare(password, user.password_hash);

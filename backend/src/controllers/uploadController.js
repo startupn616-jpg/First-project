@@ -6,7 +6,7 @@ const uploadAndAnalyze = async (req, res) => {
   if (!req.file)
     return res.status(400).json({ success: false, message: 'No image file uploaded.' });
 
-  const { survey_number, village_id, latitude, longitude, altitude, location_label } = req.body;
+  const { survey_number, village_id, latitude, longitude, altitude } = req.body;
   const imageUrl  = `/uploads/${req.file.filename}`;
   const imagePath = path.join(__dirname, '../../uploads', req.file.filename);
   const gpsData   = latitude && longitude
@@ -16,23 +16,21 @@ const uploadAndAnalyze = async (req, res) => {
   try {
     const ai = await analyzeImage(imagePath, gpsData);
 
+    const cap = (s, n = 100) => (s || '').substring(0, n) || null;
+
     const row = {
-      survey_number:       survey_number    || null,
-      village_id:          village_id       || null,
-      image_url:           imageUrl,
-      original_filename:   req.file.originalname,
-      uploaded_by:         req.user.id,
-      ai_crop_type:        ai.cropIdentified || ai.cropType      || null,
-      ai_land_condition:   ai.healthStatus   || ai.landCondition || null,
-      ai_soil_quality:     ai.soilCondition  || ai.soilQuality   || null,
-      ai_irrigation_status: ai.irrigationStatus || null,
-      ai_confidence:       ai.cropConfidence ?? ai.confidence    ?? null,
-      ai_recommendations:  (ai.immediateActions || ai.recommendations || []).join(' | '),
-      ai_raw_result:       ai,
-      latitude:            gpsData?.lat      || null,
-      longitude:           gpsData?.lng      || null,
-      altitude:            gpsData?.altitude || null,
-      location_label:      location_label   || null,
+      survey_number:        survey_number || null,
+      village_id:           village_id    || null,
+      image_url:            imageUrl,
+      original_filename:    req.file.originalname,
+      uploaded_by:          req.user.id,
+      ai_crop_type:         cap(ai.cropIdentified),
+      ai_land_condition:    cap(ai.healthStatus),
+      ai_soil_quality:      cap(ai.soilCondition),
+      ai_irrigation_status: cap(ai.irrigationStatus),
+      ai_confidence:        ai.cropConfidence ?? null,
+      ai_recommendations:   (ai.immediateActions || []).join(' | '),
+      ai_raw_result:        ai,
     };
 
     const { data, error } = await sb.from('image_analyses').insert(row).select('id').single();
@@ -45,11 +43,11 @@ const uploadAndAnalyze = async (req, res) => {
   }
 };
 
-const getAnalyses = async (req, res) => {
+const getAnalyses = async (_req, res) => {
   try {
     const { data, error } = await sb
       .from('image_analyses')
-      .select('id, image_url, original_filename, ai_crop_type, ai_land_condition, ai_confidence, ai_raw_result, latitude, longitude, location_label, created_at')
+      .select('id, image_url, original_filename, ai_crop_type, ai_land_condition, ai_confidence, ai_raw_result, created_at')
       .order('created_at', { ascending: false })
       .limit(50);
 

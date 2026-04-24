@@ -43,12 +43,14 @@ app.use('/api/tamilnilam', tamilNilamRoutes);
 app.use('/api/admin',     adminRoutes);
 app.use('/api/drone',     droneRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health check — also tests Supabase connectivity
+app.get('/api/health', async (_req, res) => {
+  const sb = require('./config/supabase');
+  const { error } = await sb.from('districts').select('id').limit(1);
   res.json({
-    status: 'OK',
+    status: error ? 'DB_ERROR' : 'OK',
     app: 'AILAND Backend',
-    version: '1.0.0',
+    db: error ? `Supabase error: ${error.message}` : 'Connected',
     timestamp: new Date().toISOString(),
   });
 });

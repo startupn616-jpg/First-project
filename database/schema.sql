@@ -162,12 +162,71 @@ SELECT t.name, d.id, t.code FROM (VALUES
 -- SEED: Villages
 -- ============================================================
 
+-- Hosur Taluk villages
 INSERT INTO villages (name, taluk_id, village_code)
 SELECT v.name, t.id, v.code FROM (VALUES
   ('Thummanapalli','HSR-001'),('Hosur','HSR-002'),('Mathigiri','HSR-003'),
   ('Rayakottai','HSR-004'),('Berigai','HSR-005'),('Baliganapalli','HSR-006'),
-  ('Thally','HSR-007'),('Naganoor','HSR-008'),('Kelamangalam','HSR-009')
+  ('Thally','HSR-007'),('Naganoor','HSR-008'),('Kelamangalam','HSR-009'),
+  ('Attibele','HSR-010'),('Bommidi','HSR-011'),('Nallur','HSR-012')
 ) AS v(name,code) JOIN taluks t ON t.code='HSR' ON CONFLICT(village_code) DO NOTHING;
+
+-- Krishnagiri Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Krishnagiri','KRG-001'),('Mathur','KRG-002'),('Theerthamalai','KRG-003'),
+  ('Agaram','KRG-004'),('Kandikuppam','KRG-005'),('Kottayur','KRG-006'),
+  ('Seetharam Nagar','KRG-007'),('Krishnagiri East','KRG-008'),
+  ('Krishnagiri West','KRG-009'),('Innabagayam','KRG-010')
+) AS v(name,code) JOIN taluks t ON t.code='KRG-C' ON CONFLICT(village_code) DO NOTHING;
+
+-- Shoolagiri Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Shoolagiri','SLG-001'),('Krishnapuram','SLG-002'),('Puthur','SLG-003'),
+  ('Kottapatti','SLG-004'),('Govindapuram','SLG-005'),('Nathamedu','SLG-006'),
+  ('Palavadi','SLG-007'),('Periyakaradiyur','SLG-008')
+) AS v(name,code) JOIN taluks t ON t.code='SLG' ON CONFLICT(village_code) DO NOTHING;
+
+-- Bargur Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Bargur','BRG-001'),('Anchetti','BRG-002'),('Pennagaram','BRG-003'),
+  ('Denkanikottai','BRG-004'),('Doddampatti','BRG-005'),('Chinnar','BRG-006'),
+  ('Kambaipattu','BRG-007'),('Veppanapalli','BRG-008')
+) AS v(name,code) JOIN taluks t ON t.code='BRG' ON CONFLICT(village_code) DO NOTHING;
+
+-- Pochampalli Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Pochampalli','PCH-001'),('Kottapatti','PCH-002'),('Thimmanatham','PCH-003'),
+  ('Agraharam','PCH-004'),('Sengal','PCH-005'),('Hogenakkal','PCH-006'),
+  ('Eriyur','PCH-007'),('Marandahalli','PCH-008')
+) AS v(name,code) JOIN taluks t ON t.code='PCH' ON CONFLICT(village_code) DO NOTHING;
+
+-- Veppanapalli Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Veppanapalli','VPN-001'),('Pongalur','VPN-002'),('Thattanahalli','VPN-003'),
+  ('Olaipadi','VPN-004'),('Thimmampatti','VPN-005'),('Naickanur','VPN-006'),
+  ('Kuppachipalayam','VPN-007')
+) AS v(name,code) JOIN taluks t ON t.code='VPN' ON CONFLICT(village_code) DO NOTHING;
+
+-- Kelamangalam Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Kelamangalam','KLM-001'),('Minnampalli','KLM-002'),('Sipcot','KLM-003'),
+  ('Goundapuram','KLM-004'),('Omalur Road','KLM-005'),('Peddanahalli','KLM-006'),
+  ('Bommidi','KLM-007'),('Sankarapuram','KLM-008')
+) AS v(name,code) JOIN taluks t ON t.code='KLM' ON CONFLICT(village_code) DO NOTHING;
+
+-- Uthangarai Taluk villages
+INSERT INTO villages (name, taluk_id, village_code)
+SELECT v.name, t.id, v.code FROM (VALUES
+  ('Uthangarai','UTG-001'),('Kaveripattinam','UTG-002'),('Harur','UTG-003'),
+  ('Palacode','UTG-004'),('Nallampalli','UTG-005'),('Polur','UTG-006'),
+  ('Varattanapalli','UTG-007'),('Kolli Hills','UTG-008')
+) AS v(name,code) JOIN taluks t ON t.code='UTG' ON CONFLICT(village_code) DO NOTHING;
 
 INSERT INTO villages (name, taluk_id, village_code)
 SELECT v.name, t.id, v.code FROM (VALUES

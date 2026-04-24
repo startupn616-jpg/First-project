@@ -1,21 +1,29 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Header from '../components/Header';
-import { uploadImage, fetchAnalyses } from '../services/api';
+import { uploadImage } from '../services/api';
+
+const RATING_STYLE = {
+  Excellent: 'text-green-700 bg-green-50 border-green-200',
+  Good:      'text-blue-700 bg-blue-50 border-blue-200',
+  Fair:      'text-yellow-700 bg-yellow-50 border-yellow-200',
+  Poor:      'text-orange-700 bg-orange-50 border-orange-200',
+  Critical:  'text-red-700 bg-red-50 border-red-200',
+};
 
 const CONFIDENCE_COLOR = (c) => {
-  if (c >= 90) return 'text-green-700 bg-green-50';
-  if (c >= 75) return 'text-yellow-700 bg-yellow-50';
+  if (c >= 85) return 'text-green-700 bg-green-50';
+  if (c >= 65) return 'text-yellow-700 bg-yellow-50';
   return 'text-red-700 bg-red-50';
 };
 
 export default function ImageUpload() {
-  const [file, setFile]               = useState(null);
-  const [preview, setPreview]         = useState(null);
-  const [dragOver, setDragOver]       = useState(false);
-  const [uploading, setUploading]     = useState(false);
-  const [progress, setProgress]       = useState(0);
-  const [result, setResult]           = useState(null);
-  const [error, setError]             = useState('');
+  const [file, setFile]           = useState(null);
+  const [preview, setPreview]     = useState(null);
+  const [dragOver, setDragOver]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress]   = useState(0);
+  const [result, setResult]       = useState(null);
+  const [error, setError]         = useState('');
   const fileInputRef = useRef(null);
 
   const handleFile = (selectedFile) => {
@@ -35,7 +43,6 @@ export default function ImageUpload() {
     setFile(selectedFile);
     setResult(null);
 
-    // Generate image preview
     const reader = new FileReader();
     reader.onloadend = () => setPreview(reader.result);
     reader.readAsDataURL(selectedFile);
@@ -73,6 +80,14 @@ export default function ImageUpload() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const detectedTags = result
+    ? [
+        ...(result.diseasesDetected   || []),
+        ...(result.pestsDetected      || []),
+        ...(result.structuresDetected || []),
+      ]
+    : [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -81,7 +96,7 @@ export default function ImageUpload() {
         <div className="mb-5">
           <h1 className="text-2xl font-bold text-gray-800">📤 Upload &amp; AI Analysis</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Upload a field photo to detect the crop type, land condition, and get recommendations.
+            Upload a field photo to detect crop type, land condition, and get actionable recommendations.
           </p>
         </div>
 
@@ -96,7 +111,6 @@ export default function ImageUpload() {
           <div className="gov-card">
             <h2 className="font-semibold text-gray-700 text-sm mb-3">Select Image</h2>
 
-            {/* Drop zone */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -134,7 +148,6 @@ export default function ImageUpload() {
               </div>
             )}
 
-            {/* Progress bar */}
             {uploading && (
               <div className="mt-3">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -165,13 +178,13 @@ export default function ImageUpload() {
               )}
             </div>
 
-            {/* Guidance */}
             <div className="mt-4 p-3 bg-earth-100 rounded-lg text-xs text-earth-700 border border-earth-200">
               <p className="font-semibold mb-1">📷 Tips for better results:</p>
               <ul className="list-disc list-inside space-y-0.5">
                 <li>Take photo in good daylight</li>
                 <li>Include the crop canopy and soil</li>
                 <li>Avoid blurry or night images</li>
+                <li>Aerial/drone shots work best</li>
               </ul>
             </div>
           </div>
@@ -195,67 +208,149 @@ export default function ImageUpload() {
             )}
 
             {result && (
-              <div className="gov-card fade-in">
-                <h2 className="font-bold text-gray-800 text-base mb-4 flex items-center gap-2">
-                  🤖 AI Analysis Result
-                </h2>
-
-                {/* Crop type - hero */}
-                <div className="bg-gov-700 rounded-xl p-4 text-white mb-4">
-                  <div className="text-xs text-gov-200 mb-0.5">Detected Crop</div>
-                  <div className="text-xl font-bold">{result.cropType}</div>
-                  <div className="text-gov-200 text-xs mt-1">🗓️ Season: {result.growthSeason}</div>
+              <div className="gov-card fade-in space-y-3">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
+                    🤖 AI Analysis Result
+                  </h2>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    Llama Vision AI
+                  </span>
                 </div>
 
-                {/* Confidence */}
-                <div className={`flex items-center justify-between p-3 rounded-lg text-sm font-semibold mb-3 ${CONFIDENCE_COLOR(result.confidence)}`}>
-                  <span>AI Confidence</span>
-                  <span className="text-lg font-black">{result.confidence}%</span>
+                {/* Crop identified */}
+                <div className="bg-gov-700 rounded-xl p-4 text-white">
+                  <div className="text-xs text-gov-200 mb-0.5">Detected Crop</div>
+                  <div className="text-xl font-bold">
+                    {result.cropIdentified || 'No crop detected'}
+                  </div>
+                  {result.cropIdentified_ta && (
+                    <div className="text-gov-200 text-sm mt-0.5">{result.cropIdentified_ta}</div>
+                  )}
+                  <div className="text-gov-300 text-xs mt-1.5">
+                    🌱 Stage: {result.growthStage || '—'}
+                  </div>
+                </div>
+
+                {/* Confidence + Overall rating */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`flex flex-col items-center p-3 rounded-lg text-sm font-semibold ${CONFIDENCE_COLOR(result.cropConfidence)}`}>
+                    <span className="text-xs font-normal mb-0.5">AI Confidence</span>
+                    <span className="text-2xl font-black">{result.cropConfidence ?? 0}%</span>
+                  </div>
+                  <div className={`flex flex-col items-center p-3 rounded-lg text-sm font-semibold border ${RATING_STYLE[result.overallRating] || 'text-gray-700 bg-gray-50 border-gray-200'}`}>
+                    <span className="text-xs font-normal mb-0.5">Overall Rating</span>
+                    <span className="text-base font-black">{result.overallRating || '—'}</span>
+                  </div>
                 </div>
 
                 {/* Key metrics */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { icon: '🌾', label: 'Land Condition', value: result.landCondition },
-                    { icon: '🌍', label: 'Soil Quality',   value: result.soilQuality },
+                    { icon: '🌾', label: 'Land Condition', value: result.healthStatus },
+                    { icon: '🌍', label: 'Soil Condition', value: result.soilCondition },
                     { icon: '💧', label: 'Irrigation',     value: result.irrigationStatus },
-                    { icon: '📊', label: 'Est. Yield',     value: result.estimatedYield },
+                    { icon: '📊', label: 'Est. Yield',     value: result.estimatedYield || '—' },
                   ].map(({ icon, label, value }) => (
                     <div key={label} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
                       <div className="text-lg mb-0.5">{icon}</div>
                       <div className="text-xs text-gray-500">{label}</div>
-                      <div className="text-xs font-semibold text-gray-800 leading-snug mt-0.5">{value}</div>
+                      <div className="text-xs font-semibold text-gray-800 leading-snug mt-0.5">{value || '—'}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* Detected features */}
-                {result.detectedFeatures?.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-xs font-semibold text-gray-600 mb-1.5">Detected Features</p>
+                {/* Health status in Tamil */}
+                {result.healthStatus_ta && (
+                  <div className="bg-gov-50 border border-gov-200 rounded-lg p-2.5 text-xs text-gov-800">
+                    <span className="font-semibold">நிலை: </span>{result.healthStatus_ta}
+                  </div>
+                )}
+
+                {/* Key observations */}
+                {result.keyObservations?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1.5">🔍 Key Observations</p>
+                    <ul className="space-y-1">
+                      {result.keyObservations.map((obs, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-gray-700 bg-gray-50 rounded p-2">
+                          <span className="text-gov-500 font-bold mt-0.5">•</span>
+                          <span>{obs}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Diseases + Pests */}
+                {detectedTags.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1.5">⚠️ Detected Issues</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {result.detectedFeatures.map((f) => (
-                        <span key={f} className="badge-blue">{f}</span>
+                      {detectedTags.map((tag) => (
+                        <span key={tag} className="text-xs bg-red-50 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
+                          {tag}
+                        </span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Recommendations */}
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1.5">📋 Recommendations</p>
-                  <ul className="space-y-1.5">
-                    {result.recommendations.map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-gray-700 bg-gray-50 rounded p-2">
-                        <span className="text-gov-600 font-bold mt-0.5">→</span>
-                        <span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {/* Immediate actions */}
+                {result.immediateActions?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1.5">📋 Immediate Actions</p>
+                    <ul className="space-y-1.5">
+                      {result.immediateActions.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-gray-700 bg-gray-50 rounded p-2">
+                          <span className="text-gov-600 font-bold mt-0.5">→</span>
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Immediate actions in Tamil */}
+                {result.immediateActions_ta?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gov-700 mb-1.5">📋 உடனடி நடவடிக்கைகள்</p>
+                    <ul className="space-y-1">
+                      {result.immediateActions_ta.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-gov-800 bg-gov-50 rounded p-2">
+                          <span className="text-gov-500 font-bold mt-0.5">→</span>
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Preventive measures */}
+                {result.preventiveMeasures?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1.5">🛡️ Preventive Measures</p>
+                    <ul className="space-y-1">
+                      {result.preventiveMeasures.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-gray-600 bg-blue-50 rounded p-2">
+                          <span className="text-blue-500 font-bold mt-0.5">✓</span>
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Additional notes */}
+                {result.additionalNotes && (
+                  <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+                    📝 {result.additionalNotes}
+                  </div>
+                )}
 
                 {/* Disclaimer */}
-                <p className="text-xs text-gray-400 mt-3 italic border-t pt-2">
+                <p className="text-xs text-gray-400 italic border-t pt-2">
                   {result.note}
                 </p>
               </div>
