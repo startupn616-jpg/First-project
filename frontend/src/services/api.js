@@ -1,10 +1,8 @@
 // Axios API service — all backend calls go through here
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/api`,
+  baseURL: `${import.meta.env.VITE_API_URL || ''}/api`,
   timeout: 30000,
 });
 

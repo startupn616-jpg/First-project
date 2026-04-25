@@ -365,7 +365,7 @@ function AnalysisResult({ result, lat, lng, lang, t }) {
       {/* Source badge */}
       {r.analysisSource && (
         <div className="text-xs text-gray-400 text-right">
-          🤖 {r.analysisSource === 'claude-vision' ? t('result.source_claude') : t('result.source_mock')}
+          🤖 {r.analysisSource === 'llama-vision' ? 'Llama 4 Vision (Groq)' : r.analysisSource === 'claude-vision' ? 'Claude Vision AI' : r.analysisSource}
         </div>
       )}
 

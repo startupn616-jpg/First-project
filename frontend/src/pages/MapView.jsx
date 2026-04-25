@@ -14,6 +14,32 @@ import {
   stopDroneSession, fetchAnalyses,
 } from '../services/api';
 
+const DISTRICT_CENTERS = {
+  KRG: [12.5189, 78.2138], CHE: [13.0827, 80.2707], CBE: [11.0168, 76.9558],
+  MDU: [9.9252,  78.1198], SLM: [11.6643, 78.1460], TRY: [10.7905, 78.7047],
+  VLR: [12.9165, 79.1325], ERD: [11.3428, 77.7272], TNV: [8.7139,  77.7567],
+  TNJ: [10.7870, 79.1378], DDL: [10.3620, 77.9803], KCP: [12.8342, 79.7036],
+  TPR: [11.1085, 77.3411], NMK: [11.2188, 78.1670], DPR: [12.1278, 78.1564],
+  CDL: [11.7508, 79.7695], NGP: [10.7672, 79.8449], TVR: [10.7719, 79.6351],
+  PDK: [10.3736, 78.8158], SVG: [9.8432,  78.4847], VNR: [9.5854,  77.9524],
+  RMD: [9.3639,  78.8395], TDK: [8.7642,  78.1348], KNK: [8.0883,  77.5385],
+  OOT: [11.4102, 76.6950], ARL: [11.1427, 79.0747], PBR: [11.2317, 78.8779],
+  KRR: [10.9601, 78.0766], TVL: [13.1435, 79.9088], VLM: [11.9401, 79.4861],
+  KLK: [11.7381, 78.9560], CPT: [12.6918, 79.9773], RNP: [12.9222, 79.3323],
+  TPT: [12.4959, 78.5708], MYD: [11.1018, 79.6442], TKS: [8.9602,  77.3151],
+  TVN: [12.2253, 79.0747],
+};
+
+const TALUK_CENTERS = {
+  'KRG-C': [12.5189, 78.2138], HSR: [12.7426, 77.8253], SLG: [12.6500, 77.9400],
+  BRG: [12.4860, 78.0780],     PCH: [12.3650, 78.0050], VPN: [12.5990, 78.2170],
+  KLM: [12.6260, 77.9780],     UTG: [12.2880, 78.3700],
+  'CBE-N': [11.0500, 76.9800], 'CBE-S': [10.9401, 76.9420], PLH: [10.6514, 76.9613],
+  MTP: [11.2985, 76.9354],     'MDU-N': [9.9600, 78.1300], 'MDU-S': [9.8900, 78.1100],
+  'SLM-C': [11.6643, 78.1460], 'TRY-C': [10.7905, 78.7047], 'TNJ-C': [10.7870, 79.1378],
+  KBK: [10.9610, 79.3788],     'TNV-C': [8.7139, 77.7567],
+};
+
 const droneIcon = L.divIcon({
   html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🚁</div>',
   iconSize: [30, 30],
@@ -97,12 +123,22 @@ export default function MapView() {
     setSurveyNums([]); setSurveyNo('');
     if (!districtId) return;
     fetchTaluks(districtId).then((r) => setTaluks(r.data.data || [])).catch(() => {});
+    const dist = districts.find((d) => String(d.id) === String(districtId));
+    if (dist?.code && DISTRICT_CENTERS[dist.code]) {
+      setFlyTarget(DISTRICT_CENTERS[dist.code]);
+      setFlyZoom(11);
+    }
   }, [districtId]);
 
   useEffect(() => {
     setVillages([]); setVillageId(''); setSurveyNums([]); setSurveyNo('');
     if (!talukId) return;
     fetchVillages(talukId).then((r) => setVillages(r.data.data || [])).catch(() => {});
+    const taluk = taluks.find((t) => String(t.id) === String(talukId));
+    if (taluk?.code && TALUK_CENTERS[taluk.code]) {
+      setFlyTarget(TALUK_CENTERS[taluk.code]);
+      setFlyZoom(13);
+    }
   }, [talukId]);
 
   useEffect(() => {
