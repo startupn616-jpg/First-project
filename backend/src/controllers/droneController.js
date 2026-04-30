@@ -196,10 +196,42 @@ const stopSession = async (req, res) => {
   });
 };
 
+// ── GET /api/drone/track/:sessionId (PUBLIC — no auth) ───────
+/**
+ * Public shareable tracking endpoint.
+ * Returns session info + latest position + last 100 trail points.
+ * Used by the /track/:sessionId live-tracking page (no login needed).
+ */
+const getPublicTrack = (req, res) => {
+  const { sessionId } = req.params;
+  const session = sessions.get(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Session not found or has expired.' });
+  }
+
+  const latest = session.positions.length
+    ? session.positions[session.positions.length - 1]
+    : null;
+
+  return res.json({
+    success:       true,
+    sessionId,
+    name:          session.name,
+    isActive:      session.isActive,
+    startedAt:     session.startedAt,
+    stoppedAt:     session.stoppedAt || null,
+    totalPoints:   session.positions.length,
+    latestPosition: latest,
+    trail:         session.positions.slice(-100),
+  });
+};
+
 module.exports = {
   startSession,
   updatePosition,
   getActiveSessions,
   getPositionHistory,
   stopSession,
+  getPublicTrack,
 };

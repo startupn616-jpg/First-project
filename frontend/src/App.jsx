@@ -9,6 +9,7 @@ import Dashboard    from './pages/Dashboard';
 import MapView      from './pages/MapView';
 import DroneAnalysis from './pages/DroneAnalysis';
 import DataEntry    from './pages/DataEntry';
+import DroneTrack   from './pages/DroneTrack';
 
 // Route guard: redirects unauthenticated users to /login
 const ProtectedRoute = ({ children }) => {
@@ -37,6 +38,9 @@ const AppRoutes = () => (
     <Route path="/drone"      element={<ProtectedRoute><DroneAnalysis /></ProtectedRoute>} />
     <Route path="/map"        element={<ProtectedRoute><MapView /></ProtectedRoute>} />
     <Route path="/data-entry" element={<ProtectedRoute><DataEntry /></ProtectedRoute>} />
+
+    {/* Public drone tracking — no login required */}
+    <Route path="/track/:sessionId" element={<DroneTrack />} />
 
     {/* Backward-compat redirects */}
     <Route path="/upload"     element={<Navigate to="/drone" replace />} />

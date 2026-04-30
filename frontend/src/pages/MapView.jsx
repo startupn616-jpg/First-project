@@ -88,6 +88,7 @@ export default function MapView() {
   const [surveyNo, setSurveyNo]       = useState('');
   const [loadingSurveys, setLoadingSurveys] = useState(false);
 
+  const [trackCopied, setTrackCopied]          = useState(false);
   const [sessionName, setSessionName]         = useState('');
   const [activeSession, setActiveSession]     = useState(null);
   const [dronePos, setDronePos]               = useState(null);
@@ -632,6 +633,20 @@ export default function MapView() {
                       </button>
                     </div>
                   </details>
+
+                  {/* Share live tracking link */}
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/track/${activeSession.id}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        setTrackCopied(true);
+                        setTimeout(() => setTrackCopied(false), 2500);
+                      });
+                    }}
+                    className="w-full text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    {trackCopied ? '✅ Link Copied!' : '🔗 Share Live Tracking Link'}
+                  </button>
 
                   <button onClick={handleStopSession}
                     className="w-full text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg px-3 py-2 font-medium transition-colors">

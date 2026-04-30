@@ -41,6 +41,10 @@ app.use('/api', locationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/tamilnilam', tamilNilamRoutes);
 app.use('/api/admin',     adminRoutes);
+// Public shareable drone tracking — no JWT needed (before droneRoutes auth)
+const { getPublicTrack } = require('./controllers/droneController');
+app.get('/api/drone/track/:sessionId', getPublicTrack);
+
 app.use('/api/drone',     droneRoutes);
 
 // Health check — also tests Supabase connectivity
