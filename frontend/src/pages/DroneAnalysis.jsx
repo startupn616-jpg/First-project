@@ -3,7 +3,15 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import Header from '../components/Header';
 import { useLanguage } from '../context/LanguageContext';
-import { uploadImage, fetchAnalyses, fetchDistricts, fetchTaluks, fetchVillages } from '../services/api';
+import {
+  uploadImage,
+  fetchAnalysis,
+  fetchAnalyses,
+  fetchDistricts,
+  fetchTaluks,
+  fetchVillages,
+  saveAnalysisReview,
+} from '../services/api';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -28,9 +36,10 @@ const fmtDate = (iso) => iso
 
 // ─── Drop Zone ───────────────────────────────────────────────────────────────
 
-function DropZone({ file, onFile, t }) {
+function DropZone({ file, onFile, onCapture, t }) {
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef();
+  const uploadInputRef = useRef();
+  const captureInputRef = useRef();
 
   const validate = (f) => {
     if (!f) return null;
@@ -44,14 +53,15 @@ function DropZone({ file, onFile, t }) {
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => { e.preventDefault(); setDragging(false); const f = validate(e.dataTransfer.files[0]); if (f) onFile(f); }}
-      onClick={() => !file && inputRef.current.click()}
       className={`relative border-2 border-dashed rounded-xl transition-colors
-        ${file ? 'cursor-default' : 'cursor-pointer hover:border-gov-400 hover:bg-gov-50'}
+        ${file ? 'cursor-default' : 'hover:border-gov-400 hover:bg-gov-50'}
         ${dragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}
       style={{ minHeight: '160px' }}
     >
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+      <input ref={uploadInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
         onChange={(e) => { const f = validate(e.target.files[0]); if (f) onFile(f); }} />
+      <input ref={captureInputRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={(e) => { const f = validate(e.target.files[0]); if (f) onCapture(f); }} />
       {file ? (
         <div className="relative">
           <img src={URL.createObjectURL(file)} alt="Preview"
@@ -69,8 +79,16 @@ function DropZone({ file, onFile, t }) {
       ) : (
         <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
           <span className="text-4xl sm:text-5xl mb-3">🛸</span>
-          <p className="text-gray-600 font-semibold mb-1 text-sm">{t('drone.drop_main')}</p>
-          <p className="text-gray-400 text-xs">{t('drone.drop_sub')}</p>
+          <p className="text-gray-600 font-semibold mb-1 text-sm">{t('drone.select_image')}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 w-full max-w-sm">
+            <button type="button" onClick={() => uploadInputRef.current.click()} className="btn-secondary text-sm">
+              {t('drone.upload_btn')}
+            </button>
+            <button type="button" onClick={() => captureInputRef.current.click()} className="btn-primary text-sm">
+              {t('drone.capture_btn')}
+            </button>
+          </div>
+          <p className="text-gray-400 text-xs mt-3">{t('drone.capture_hint')}</p>
           <p className="text-gray-300 text-xs mt-2">{t('drone.drop_formats')}</p>
         </div>
       )}
@@ -181,7 +199,7 @@ function LangToggle({ lang, toggleLang }) {
 
 // ─── Analysis Result ─────────────────────────────────────────────────────────
 
-function AnalysisResult({ result, lat, lng, lang, t }) {
+function AnalysisResult({ result, lat, lng, parcelLink, surveyNumber, lang, t }) {
   if (!result) return null;
   const r = result;
   const ta = lang === 'ta';
@@ -218,6 +236,20 @@ function AnalysisResult({ result, lat, lng, lang, t }) {
 
   return (
     <div className="space-y-4">
+      {(parcelLink || surveyNumber) && (
+        <div className="border border-blue-200 bg-blue-50 rounded-xl p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">Matched land record</div>
+          <div className="mt-1 text-sm text-blue-950">
+            Survey No. <strong>{surveyNumber || parcelLink?.surveyNumber}</strong>
+            {parcelLink?.subDivision && <> / {parcelLink.subDivision}</>}
+          </div>
+          {parcelLink?.distanceMeters != null && (
+            <p className="mt-1 text-xs text-blue-700">
+              Nearest parcel: {parcelLink.distanceMeters} m from the image coordinates.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Hero */}
       <div className={`border-2 rounded-xl p-4 sm:p-5 ${ratingClass}`}>
@@ -365,7 +397,7 @@ function AnalysisResult({ result, lat, lng, lang, t }) {
       {/* Source badge */}
       {r.analysisSource && (
         <div className="text-xs text-gray-400 text-right">
-          🤖 {r.analysisSource === 'llama-vision' ? 'Llama 4 Vision (Groq)' : r.analysisSource === 'claude-vision' ? 'Claude Vision AI' : r.analysisSource}
+          🤖 {r.analysisSource === 'gemini-vision' ? 'Gemini Vision' : r.analysisSource === 'openai-vision' ? 'OpenAI Vision' : r.analysisSource === 'llama-vision' ? 'Llama 4 Vision (Groq)' : r.analysisSource === 'claude-vision' ? 'Claude Vision AI' : r.analysisSource}
         </div>
       )}
 
@@ -389,9 +421,69 @@ function AnalysisResult({ result, lat, lng, lang, t }) {
   );
 }
 
+function ReviewPanel({ item, result, onSave, saving }) {
+  const [cropName, setCropName] = useState('');
+  const [cropNameTamil, setCropNameTamil] = useState('');
+  const [landCondition, setLandCondition] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    setCropName(result?.cropIdentified || item?.ai_crop_type || '');
+    setCropNameTamil(result?.cropIdentified_ta || item?.ai_raw_result?.cropIdentified_ta || '');
+    setLandCondition(result?.healthStatus || item?.ai_land_condition || '');
+    setNotes(result?.additionalNotes || item?.ai_recommendations || '');
+  }, [item?.id, result]);
+
+  const submit = (event) => {
+    event.preventDefault();
+    onSave({ crop_name: cropName, crop_name_ta: cropNameTamil, land_condition: landCondition, notes });
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-4 border border-amber-200 bg-amber-50 rounded-xl p-4">
+      <div className="flex gap-2">
+        <span className="text-lg">✍️</span>
+        <div>
+          <h4 className="font-semibold text-sm text-amber-900">Review and correct this image</h4>
+          <p className="text-xs text-amber-800 mt-0.5">
+            If AI could not identify the image, enter the correct crop or image name. Your reviewed value is saved to the image record for Data Entry reference.
+          </p>
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3 mt-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Crop / image name *</label>
+          <input value={cropName} onChange={(e) => setCropName(e.target.value)}
+            className="form-input text-sm" placeholder="e.g. Paddy field, Coconut, Barren land" required />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">பயிர் / படப் பெயர் (Tamil)</label>
+          <input value={cropNameTamil} onChange={(e) => setCropNameTamil(e.target.value)}
+            className="form-input text-sm" lang="ta" placeholder="எ.கா. நெல் வயல், தென்னை" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Land condition</label>
+          <input value={landCondition} onChange={(e) => setLandCondition(e.target.value)}
+            className="form-input text-sm" placeholder="e.g. Healthy, dry, pest affected" />
+        </div>
+      </div>
+      <div className="mt-3">
+        <label className="block text-xs font-semibold text-gray-700 mb-1">Reviewer notes</label>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+          className="form-input text-sm h-16 resize-none" placeholder="Optional verification notes" />
+      </div>
+      <button type="submit" disabled={saving}
+        className="mt-3 btn-primary text-sm">
+        {saving ? 'Saving review…' : 'Save reviewed result'}
+      </button>
+    </form>
+  );
+}
+
 // ─── History Card ─────────────────────────────────────────────────────────────
 
 function HistoryCard({ item, isSelected, onSelect, t }) {
+  const status = item.analysis_status || 'completed';
   const rating = item.ai_raw_result?.overallRating || item.overall_rating || '—';
   const crop   = item.ai_raw_result?.cropIdentified || item.ai_crop_type || '—';
   const ratingClass = RATING_COLORS[rating] || 'bg-gray-100 text-gray-600';
@@ -413,6 +505,11 @@ function HistoryCard({ item, isSelected, onSelect, t }) {
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm text-gray-800 truncate">{crop}</div>
         <div className={`text-xs font-medium px-1.5 py-0.5 rounded inline-block mt-0.5 ${ratingClass}`}>{rating}</div>
+        {status !== 'completed' && (
+          <div className={`text-xs mt-1 font-medium ${status === 'failed' ? 'text-red-600' : 'text-amber-600'}`}>
+            {status === 'failed' ? 'Analysis failed' : 'Analysis in progress'}
+          </div>
+        )}
         <div className="text-xs text-gray-400 mt-1">{fmtDate(item.created_at)}</div>
         {item.location_label && (
           <div className="text-xs text-gray-500 truncate mt-0.5">📍 {item.location_label}</div>
@@ -430,8 +527,12 @@ export default function DroneAnalysis() {
 
   // Upload / analysis state
   const [file, setFile] = useState(null);
+  const [imageSource, setImageSource] = useState('');
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('');
+  const [parcelLink, setParcelLink] = useState(null);
+  const [surveyNumber, setSurveyNumber] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
@@ -454,8 +555,34 @@ export default function DroneAnalysis() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState(null);
   const [viewingHistory, setViewingHistory]     = useState(null); // the full item
+  const [savingReview, setSavingReview]         = useState(false);
+  const [reviewMessage, setReviewMessage]       = useState('');
 
   const resultsRef = useRef(null);
+
+  const requestDeviceGps = useCallback(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(6));
+        setLng(pos.coords.longitude.toFixed(6));
+        if (pos.coords.altitude != null) setAltitude(pos.coords.altitude.toFixed(1));
+      },
+      () => {},
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  }, []);
+
+  const handleUploadSelect = useCallback((selectedFile) => {
+    setImageSource('upload');
+    setFile(selectedFile);
+  }, []);
+
+  const handleCaptureSelect = useCallback((selectedFile) => {
+    setImageSource('capture');
+    setFile(selectedFile);
+    requestDeviceGps();
+  }, [requestDeviceGps]);
 
   // Load districts + history on mount
   useEffect(() => {
@@ -481,11 +608,13 @@ export default function DroneAnalysis() {
 
   const handleAnalyze = async () => {
     if (!file) { setError('Please select a drone image first.'); return; }
-    setError(''); setUploading(true); setProgress(0); setResult(null);
+    setError(''); setUploading(true); setProgress(0); setResult(null); setAnalysisStatus('Uploading image…');
+    setParcelLink(null); setSurveyNumber('');
     setViewingHistory(null); setSelectedHistoryId(null);
 
     const fd = new FormData();
     fd.append('image', file);
+    fd.append('source', imageSource || 'upload');
     if (lat)           fd.append('latitude', lat);
     if (lng)           fd.append('longitude', lng);
     if (altitude)      fd.append('altitude', altitude);
@@ -494,9 +623,45 @@ export default function DroneAnalysis() {
 
     try {
       const res = await uploadImage(fd, setProgress);
-      const data = res.data.analysis || res.data;
-      setResult(data);
-      // Refresh history
+      const analysisId = res.data.analysisId;
+      if (!analysisId) throw new Error('The server did not return an analysis ID.');
+
+      setParcelLink(res.data.parcelLink || null);
+      setSurveyNumber(res.data.parcelLink?.surveyNumber || '');
+      setProgress(100);
+      setAnalysisStatus('Image uploaded. AI analysis is running…');
+
+      const timeoutAt = Date.now() + 2 * 60 * 1000;
+      let analysisRecord;
+      while (Date.now() < timeoutAt) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const statusResponse = await fetchAnalysis(analysisId);
+        analysisRecord = statusResponse.data.data;
+
+        if (analysisRecord.analysis_status === 'completed') {
+          setResult(analysisRecord.analysis || analysisRecord.ai_raw_result);
+          setViewingHistory(analysisRecord);
+          setSelectedHistoryId(analysisRecord.id);
+          setLat(analysisRecord.latitude?.toString() || lat);
+          setLng(analysisRecord.longitude?.toString() || lng);
+          setAltitude(analysisRecord.altitude?.toString() || altitude);
+          setLocationLabel(analysisRecord.location_label || locationLabel);
+          setSurveyNumber(analysisRecord.survey_number || res.data.parcelLink?.surveyNumber || '');
+          setAnalysisStatus('Analysis completed.');
+          break;
+        }
+
+        if (analysisRecord.analysis_status === 'failed') {
+          setViewingHistory(analysisRecord);
+          setSelectedHistoryId(analysisRecord.id);
+          throw new Error(analysisRecord.ai_recommendations || 'AI analysis could not be completed.');
+        }
+      }
+
+      if (!analysisRecord || analysisRecord.analysis_status !== 'completed') {
+        setAnalysisStatus('Analysis is still running. Check the history shortly for the result.');
+      }
+
       fetchAnalyses().then((r) => setHistory((r.data.data || []).slice(0, 20))).catch(() => {});
       // Scroll to results on mobile
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -511,17 +676,38 @@ export default function DroneAnalysis() {
     setSelectedHistoryId(item.id);
     setViewingHistory(item);
     setResult(item.ai_raw_result || null);
+    setParcelLink(null);
+    setSurveyNumber(item.survey_number || '');
     setLat(item.latitude?.toString() || '');
     setLng(item.longitude?.toString() || '');
     setLocationLabel(item.location_label || '');
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   }, []);
 
+  const handleSaveReview = async (review) => {
+    if (!viewingHistory?.id) return;
+    setSavingReview(true);
+    setReviewMessage('');
+    try {
+      const response = await saveAnalysisReview(viewingHistory.id, review);
+      const updated = response.data.data;
+      setViewingHistory(updated);
+      setResult(updated.ai_raw_result);
+      setHistory((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setReviewMessage('Review saved. The corrected name is now available in Image Analyzer history and Data Entry reference.');
+    } catch (err) {
+      setReviewMessage(err.response?.data?.message || 'Could not save the review.');
+    } finally {
+      setSavingReview(false);
+    }
+  };
+
   const handleNewAnalysis = () => {
     setViewingHistory(null);
     setSelectedHistoryId(null);
-    setResult(null);
-    setFile(null);
+    setResult(null); setAnalysisStatus(''); setParcelLink(null); setSurveyNumber('');
+    setReviewMessage('');
+    setFile(null); setImageSource('');
     setLat(''); setLng(''); setAltitude(''); setLocationLabel('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -545,7 +731,12 @@ export default function DroneAnalysis() {
 
             <div className="gov-card">
               <h3 className="font-semibold text-sm text-gray-700 mb-3">📸 {t('drone.image_section')}</h3>
-              <DropZone file={file} onFile={setFile} t={t} />
+              <DropZone
+                file={file}
+                onFile={handleUploadSelect}
+                onCapture={handleCaptureSelect}
+                t={t}
+              />
             </div>
 
             <div className="gov-card">
@@ -588,7 +779,7 @@ export default function DroneAnalysis() {
               {uploading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full spin" />
-                  {t('drone.analyzing')} {progress > 0 && progress < 100 ? `${progress}%` : ''}
+                  {analysisStatus || t('drone.analyzing')} {progress > 0 && progress < 100 ? `${progress}%` : ''}
                 </>
               ) : t('drone.analyze_btn')}
             </button>
@@ -598,6 +789,9 @@ export default function DroneAnalysis() {
                 <div className="h-full bg-gov-600 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }} />
               </div>
+            )}
+            {analysisStatus && !error && (
+              <p className="text-xs text-gov-700 text-center" aria-live="polite">{analysisStatus}</p>
             )}
 
             {/* Mobile: scroll hint after analyze */}
@@ -610,11 +804,11 @@ export default function DroneAnalysis() {
 
           {/* ── RIGHT: Results ── */}
           <div ref={resultsRef} className="space-y-4">
-            {result ? (
+            {result || viewingHistory ? (
               <div className="gov-card">
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <h3 className="font-semibold text-gray-700 flex items-center gap-2 min-w-0">
-                    ✅ <span className="truncate">{t('drone.results_title')}</span>
+                    {result ? '✅' : '✍️'} <span className="truncate">{result ? t('drone.results_title') : 'Image review required'}</span>
                   </h3>
                   <div className="flex items-center gap-2 shrink-0">
                     <LangToggle lang={lang} toggleLang={toggleLang} />
@@ -644,7 +838,32 @@ export default function DroneAnalysis() {
                   </div>
                 )}
 
-                <AnalysisResult result={result} lat={lat} lng={lng} lang={lang} t={t} />
+                {result && (
+                  <AnalysisResult
+                    result={result}
+                    lat={lat}
+                    lng={lng}
+                    parcelLink={parcelLink}
+                    surveyNumber={surveyNumber}
+                    lang={lang}
+                    t={t}
+                  />
+                )}
+                {viewingHistory && (
+                  <>
+                    <ReviewPanel
+                      item={viewingHistory}
+                      result={result}
+                      onSave={handleSaveReview}
+                      saving={savingReview}
+                    />
+                    {reviewMessage && (
+                      <p className={`mt-3 text-xs ${reviewMessage.startsWith('Review saved') ? 'text-gov-700' : 'text-red-600'}`}>
+                        {reviewMessage}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
               <div className="gov-card flex flex-col items-center justify-center py-12 sm:py-16 text-center border-dashed border-2 border-gray-200 bg-gray-50">

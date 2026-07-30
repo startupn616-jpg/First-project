@@ -20,6 +20,7 @@ const TNGIS_WFS_URL = process.env.TNGIS_WFS_URL || 'https://tngis.tn.gov.in/geos
 const TNGIS_API_URL = process.env.TNGIS_API_URL || 'https://eservices.tn.gov.in/eservicesnew/land';
 const TNGIS_API_KEY = process.env.TNGIS_API_KEY || '';
 const TNGIS_LAYER   = process.env.TNGIS_LAYER   || 'tngis:survey_cadastral';
+const TNGIS_GEOMETRY_FIELD = process.env.TNGIS_GEOMETRY_FIELD || 'geom';
 
 const USE_MOCK = !TNGIS_API_KEY; // auto-fall-back to demo data when no key
 
@@ -177,6 +178,40 @@ function featureToLandDetail(feature) {
   };
 }
 
+async function resolveSurveyAtPoint(lat, lng) {
+  if (!TNGIS_API_KEY) {
+    const error = new Error('TNGIS access is not configured. Add TNGIS_API_KEY, TNGIS_WFS_URL, TNGIS_LAYER, and TNGIS_GEOMETRY_FIELD.');
+    error.code = 'TNGIS_NOT_CONFIGURED';
+    throw error;
+  }
+
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    throw new Error('Valid latitude and longitude are required.');
+  }
+
+  const point = `POINT(${Number(lng)} ${Number(lat)})`;
+  const res = await tngisClient.get(TNGIS_WFS_URL, {
+    params: {
+      service: 'WFS',
+      version: '2.0.0',
+      request: 'GetFeature',
+      typeNames: TNGIS_LAYER,
+      outputFormat: 'application/json',
+      CQL_FILTER: `INTERSECTS(${TNGIS_GEOMETRY_FIELD},${point})`,
+      maxFeatures: 1,
+    },
+  });
+
+  const feature = res.data?.features?.[0];
+  if (!feature) {
+    const error = new Error('No official TNGIS survey parcel was found at this location.');
+    error.code = 'SURVEY_NOT_FOUND';
+    throw error;
+  }
+
+  return featureToLandDetail(feature);
+}
+
 // ── MOCK DATA ─────────────────────────────────────────────────
 // Realistic Tamil Nadu land data for development / demo.
 // Replace with real TNGIS API once you have credentials.
@@ -275,4 +310,4 @@ function mockPattaDetails(pattaNo) {
   };
 }
 
-module.exports = { getSurveyNumbers, getSubDivisions, getSurveyDetails, getPattaDetails };
+module.exports = { getSurveyNumbers, getSubDivisions, getSurveyDetails, getPattaDetails, resolveSurveyAtPoint };

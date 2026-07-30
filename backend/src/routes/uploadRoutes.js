@@ -2,7 +2,13 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { uploadAndAnalyze, getAnalyses } = require('../controllers/uploadController');
+const {
+  uploadAndAnalyze,
+  uploadBulk,
+  getAnalysisById,
+  getAnalyses,
+  reviewAnalysis,
+} = require('../controllers/uploadController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Configure multer for image storage
@@ -35,6 +41,9 @@ const upload = multer({
 });
 
 router.post('/', authMiddleware, upload.single('image'), uploadAndAnalyze);
+router.post('/bulk', authMiddleware, upload.array('images', 10), uploadBulk);
 router.get('/analyses', authMiddleware, getAnalyses);
+router.get('/analyses/:id', authMiddleware, getAnalysisById);
+router.put('/analyses/:id/review', authMiddleware, reviewAnalysis);
 
 module.exports = router;

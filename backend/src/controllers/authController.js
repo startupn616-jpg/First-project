@@ -8,16 +8,17 @@ const login = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Username and password are required.' });
 
   try {
-    const { data: user, error } = await sb
+    const { data: users, error } = await sb
       .from('users')
       .select('id, username, password_hash, full_name, role')
       .eq('username', username.trim().toLowerCase())
-      .single();
+      .limit(1);
 
     if (error) {
       console.error('DB error during login:', error.message);
       return res.status(500).json({ success: false, message: 'Database connection error. Check Supabase credentials.' });
     }
+    const user = users?.[0];
     if (!user)
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
 

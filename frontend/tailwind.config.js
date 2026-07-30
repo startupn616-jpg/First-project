@@ -4,19 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Tamil Nadu government green palette
+        // Civic royal-blue palette with a warm saffron accent.
         gov: {
-          50:  '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
+          50:  '#eef4ff',
+          100: '#dbe7ff',
+          200: '#bfd2ff',
+          300: '#93b4ff',
+          400: '#6389f5',
+          500: '#4267d9',
+          600: '#314fb8',
+          700: '#263d91',
+          800: '#1f3275',
+          900: '#19285d',
+          950: '#111c42',
         },
         earth: {
           100: '#fef3c7',
@@ -26,7 +26,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"Noto Sans"', '"Noto Sans Tamil"', 'system-ui', 'sans-serif'],
       },
     },
   },

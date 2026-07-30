@@ -1,8 +1,13 @@
 // Axios API service — all backend calls go through here
 import axios from 'axios';
 
+const configuredApiUrl = import.meta.env.VITE_API_URL || '/api';
+const apiBaseUrl = configuredApiUrl.endsWith('/api')
+  ? configuredApiUrl
+  : `${configuredApiUrl.replace(/\/$/, '')}/api`;
+
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || ''}/api`,
+  baseURL: apiBaseUrl,
   timeout: 30000,
 });
 
@@ -45,6 +50,8 @@ export const fetchSurveyDetails = (params) =>
 
 export const fetchPattaDetails = (params) =>
   api.get('/tamilnilam/patta', { params });
+export const resolveSurveyAtPoint = (params) =>
+  api.get('/tamilnilam/at-point', { params });
 
 // ── Admin: manual survey data management ─────────────────────
 export const adminListLand     = (params) => api.get('/admin/land', { params });
@@ -61,6 +68,8 @@ export const uploadImage = (formData, onProgress) =>
   });
 
 export const fetchAnalyses = () => api.get('/upload/analyses');
+export const fetchAnalysis = (id) => api.get(`/upload/analyses/${id}`);
+export const saveAnalysisReview = (id, data) => api.put(`/upload/analyses/${id}/review`, data);
 
 // ── Drone session & position tracking ────────────────────────
 export const startDroneSession  = (name) => api.post('/drone/start', { name });

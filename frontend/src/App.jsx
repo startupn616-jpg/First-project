@@ -4,8 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 
 import ErrorBoundary from './components/ErrorBoundary';
+import Landing      from './pages/Landing';
 import Login        from './pages/Login';
-import Dashboard    from './pages/Dashboard';
 import MapView      from './pages/MapView';
 import DroneAnalysis from './pages/DroneAnalysis';
 import DataEntry    from './pages/DataEntry';
@@ -33,8 +33,9 @@ const ProtectedRoute = ({ children }) => {
 
 const AppRoutes = () => (
   <Routes>
+    <Route path="/"           element={<Landing />} />
     <Route path="/login"      element={<Login />} />
-    <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+    <Route path="/dashboard"  element={<Navigate to="/map" replace />} />
     <Route path="/drone"      element={<ProtectedRoute><DroneAnalysis /></ProtectedRoute>} />
     <Route path="/map"        element={<ProtectedRoute><MapView /></ProtectedRoute>} />
     <Route path="/data-entry" element={<ProtectedRoute><DataEntry /></ProtectedRoute>} />
@@ -44,7 +45,7 @@ const AppRoutes = () => (
 
     {/* Backward-compat redirects */}
     <Route path="/upload"     element={<Navigate to="/drone" replace />} />
-    <Route path="/search"     element={<Navigate to="/" replace />} />
+    <Route path="/search"     element={<Navigate to="/map" replace />} />
 
     <Route path="*"           element={<Navigate to="/" replace />} />
   </Routes>

@@ -1,180 +1,69 @@
-# AILAND — Tamil Nadu Agriculture & Land Survey System
+# AILAND — TamilNillamGeo
 
-Internal web application for Tamil Nadu government agriculture and land survey officers.
+Internal field-survey application for Tamil Nadu land and agriculture officers. It turns a geotagged field image into an AI analysis and associates it with a nearby parcel and survey number.
 
----
+## Local setup
 
-## Folder Structure
+1. In Supabase SQL Editor, run `database/schema.sql` for a new database. For an existing database, run `database/migration_analysis_schema.sql`.
+2. In `backend`, copy `.env.example` to `.env` and set:
 
-```
-First project/
-├── backend/
-│   ├── src/
-│   │   ├── config/database.js          # PostgreSQL pool (Supabase)
-│   │   ├── controllers/
-│   │   │   ├── authController.js       # Login / profile
-│   │   │   ├── locationController.js   # Districts, taluks, villages
-│   │   │   ├── landController.js       # Land search
-│   │   │   └── uploadController.js     # Image upload + AI analysis
-│   │   ├── middleware/authMiddleware.js # JWT guard
-│   │   ├── routes/                     # Express route files
-│   │   ├── utils/aiAnalysis.js         # Placeholder AI logic
-│   │   ├── server.js                   # Main Express app
-│   │   └── seed.js                     # DB seed script (test users)
-│   ├── uploads/                        # Uploaded images (git-ignored)
-│   ├── .env.example
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Login.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── LandSearch.jsx          # District→Taluk→Village→Survey
-│   │   │   ├── MapView.jsx             # Leaflet map + GPS
-│   │   │   └── ImageUpload.jsx         # Image upload + AI result
-│   │   ├── components/
-│   │   │   ├── Header.jsx              # Nav + mobile menu
-│   │   │   └── LandMap.jsx             # Reusable map component
-│   │   ├── context/AuthContext.jsx     # Auth state
-│   │   ├── services/api.js             # Axios API wrapper
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── .env.example
-│   └── package.json
-│
-└── database/
-    └── schema.sql                      # Full PostgreSQL schema + seed data
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=service-role-key-used-only-by-the-backend
+JWT_SECRET=a-long-random-secret
+GEMINI_API_KEY=your-google-ai-studio-key
+GEMINI_VISION_MODEL=gemini-3.1-flash-lite
 ```
 
----
+3. Run `npm install` then `npm run seed` in `backend`, and start it with `npm run dev`.
+4. Run `npm install` then `npm run dev` in `frontend`.
+5. Open the Vite URL shown in the terminal (normally `http://localhost:3000`).
 
-## Setup Instructions
+The seed command creates local test accounts: `admin` / `Admin@123` and `officer1` / `Officer@123`. Change or remove these accounts before deploying.
 
-### Step 1 — Supabase Database
+## Image-to-survey workflow
 
-1. Go to [supabase.com](https://supabase.com) and open your project
-2. Click **SQL Editor** in the left sidebar
-3. Copy the contents of `database/schema.sql` and paste it into the editor
-4. Click **Run** — this creates all tables and inserts Tamil Nadu seed data
-5. Get your **Database URL** from:
-   - Project Settings → Database → Connection string → URI
+1. Sign in and open **Drone Analysis**.
+2. Upload a JPG, PNG, or WebP image. DJI Neo 2 photos may include GPS/altitude in EXIF; those coordinates are used before manually entered coordinates.
+3. The API immediately creates an `image_analyses` record with `processing` status and returns HTTP 202.
+4. The web app polls `/api/upload/analyses/:id` until Gemini vision analysis is `completed` or `failed`. A user can manually review a failed or uncertain image and save English/Tamil crop names.
+5. GPS is matched to the nearest stored parcel (within 2 km by default), then the survey number and map pin are shown.
 
-### Step 2 — Backend Setup
+Without `GEMINI_API_KEY`, uploaded images are retained but their analysis will fail. Official TNGIS survey resolution remains unavailable until valid credentials and cadastral-layer details are configured.
 
-```bash
-cd backend
+## Google Maps and live TNGIS survey lookup
 
-# Install dependencies
-npm install
+Set `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`, enable **Maps JavaScript API**, enable billing, and restrict the browser key to `http://localhost:3000/*` and `http://127.0.0.1:3000/*`. Restart Vite after changing this file.
 
-# Create .env file
-cp .env.example .env
-```
+Official map-click and GPS-to-survey lookup requires TNGIS access. Set `TNGIS_WFS_URL`, `TNGIS_API_KEY`, `TNGIS_LAYER`, and `TNGIS_GEOMETRY_FIELD` in `backend/.env`. Until these values are issued and verified, the map reports that official TNGIS survey lookup is unavailable rather than returning a made-up survey number.
 
-Edit `.env` and fill in:
-```
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-JWT_SECRET=any-strong-random-string
-```
+## APIs
 
-```bash
-# Seed test users (creates hashed passwords)
-npm run seed
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| POST | `/api/login` | Officer login |
+| GET | `/api/me` | Current profile |
+| GET | `/api/districts`, `/api/taluks`, `/api/villages` | Location hierarchy |
+| GET | `/api/tamilnilam/survey-numbers` | Survey numbers |
+| GET | `/api/tamilnilam/details` | Parcel/survey details |
+| POST | `/api/upload` | Queue one image analysis |
+| POST | `/api/upload/bulk` | Queue up to 10 images |
+| GET | `/api/upload/analyses` | Current user's history; admins see all |
+| GET | `/api/upload/analyses/:id` | Analysis polling/detail |
+| PUT | `/api/upload/analyses/:id/review` | Save an officer's manual image review |
 
-# Start the backend
-npm run dev
-# → Running on http://localhost:5000
-```
+## Deployment
 
-### Step 3 — Frontend Setup
+Vercel deploys the `frontend` directory only. Configure `VITE_API_URL` in Vercel as the public URL of a separately deployed Express backend; do not use `/api` in production unless a reverse proxy forwards it to that backend.
 
-```bash
-cd frontend
+Deploy the backend to a Node.js host and configure `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`, `GEMINI_API_KEY`, and `FRONTEND_URL` there. Set `FRONTEND_URL` to the deployed Vercel URL so CORS permits the application.
 
-# Install dependencies
-npm install
+## DJI Neo 2
 
-# Create .env file
-cp .env.example .env
-# VITE_API_URL is already set to /api (proxied to backend)
-```
+DJI Neo 2 is supported for post-capture image upload and EXIF GPS extraction only. DJI does not expose Mobile SDK support for the Neo series, so this application cannot control the aircraft, receive its live video stream, or access live flight telemetry.
 
-```bash
-# Start the frontend
-npm run dev
-# → Running on http://localhost:3000
-```
+## Stack
 
-### Step 4 — Open the App
-
-Go to **http://localhost:3000** in your browser.
-
----
-
-## Test Login Credentials
-
-| Role    | Username  | Password     |
-|---------|-----------|--------------|
-| Admin   | admin     | Admin@123    |
-| Officer | officer1  | Officer@123  |
-| Officer | officer2  | Officer@123  |
-
----
-
-## API Endpoints
-
-| Method | Endpoint                      | Auth | Description               |
-|--------|-------------------------------|------|---------------------------|
-| POST   | /api/login                    | No   | Officer login             |
-| GET    | /api/me                       | Yes  | Get current user profile  |
-| GET    | /api/districts                | Yes  | List all districts        |
-| GET    | /api/taluks?district_id=      | Yes  | Taluks for a district     |
-| GET    | /api/villages?taluk_id=       | Yes  | Villages for a taluk      |
-| GET    | /api/land/search?...          | Yes  | Search land by criteria   |
-| GET    | /api/land/:id                 | Yes  | Get land parcel by ID     |
-| POST   | /api/upload                   | Yes  | Upload image + AI analyze |
-| GET    | /api/upload/analyses          | Yes  | Recent image analyses     |
-| GET    | /api/health                   | No   | Server health check       |
-
-### Land Search Parameters
-```
-GET /api/land/search?district_id=1&taluk_id=3&village_id=10&survey_number=123&sub_division=1A
-```
-
----
-
-## Features
-
-- **Land Search** — Cascading dropdowns (District → Taluk → Village → Survey No)
-  modeled after the TamilNilam / Patta portal
-- **Map View** — OpenStreetMap with polygon boundaries, multi-parcel display
-- **GPS Detection** — Browser geolocation API shows officer's current field position
-- **AI Analysis** — Upload field photo, get: crop type detection (10 Tamil Nadu crops),
-  land condition, soil quality, irrigation status, estimated yield, and recommendations
-- **Mobile Responsive** — Works on phones used during field inspection
-- **JWT Auth** — 8-hour sessions (one work day), auto-logout on expiry
-
----
-
-## Production AI Integration
-
-Replace the placeholder in `backend/src/utils/aiAnalysis.js` with one of:
-
-- **Google Cloud Vision API** — Crop/label detection
-- **AWS Rekognition** — Object and scene detection
-- **Roboflow** — Custom Tamil Nadu crop ML model
-- **TensorFlow.js** — On-device inference (no API cost)
-
----
-
-## Tech Stack
-
-| Layer    | Technology                          |
-|----------|-------------------------------------|
-| Frontend | React 18 + Vite + Tailwind CSS      |
-| Map      | React-Leaflet + OpenStreetMap       |
-| Backend  | Node.js + Express                   |
-| Database | PostgreSQL (Supabase)               |
-| Auth     | JWT (jsonwebtoken)                  |
-| Upload   | Multer                              |
+- React, Vite, Tailwind, React-Leaflet
+- Express, Multer, Gemini vision
+- Supabase PostgreSQL and backend-issued JWTs

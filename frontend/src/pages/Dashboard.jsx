@@ -53,7 +53,7 @@ export default function Dashboard() {
     { label: t('dashboard.stat_districts'), value: '37',      icon: '🏛️' },
     { label: t('dashboard.stat_villages'),  value: '15,000+', icon: '🏘️' },
     { label: t('dashboard.stat_analyses'),  value: 'Live',    icon: '🚁' },
-    { label: t('dashboard.stat_ai'),        value: 'Claude',  icon: '🤖' },
+    { label: t('dashboard.stat_ai'),        value: 'Gemini Vision',  icon: '🤖' },
   ];
 
   return (
@@ -63,7 +63,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 py-4 sm:py-6 flex-1 w-full">
 
         {/* Welcome banner */}
-        <div className="gov-card mb-5 sm:mb-6 overflow-hidden p-0 border border-gov-200 shadow-md">
+        <div className="gov-card mb-5 sm:mb-6 overflow-hidden p-0 border border-gov-200 shadow-[0_22px_45px_rgba(8,47,73,0.18)] transform-gpu">
           <div className="grid md:grid-cols-2">
 
             {/* Left: welcome text + stats */}

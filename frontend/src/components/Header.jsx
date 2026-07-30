@@ -11,7 +11,6 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const NAV_LINKS = [
-    { to: '/',           label: t('nav.dashboard'),  icon: '🏠' },
     { to: '/drone',      label: t('nav.drone'),       icon: '🚁' },
     { to: '/map',        label: t('nav.map'),         icon: '🗺️' },
     { to: '/data-entry', label: t('nav.data_entry'),  icon: '📝' },
@@ -29,7 +28,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-14 sm:h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 shrink-0">
+          <Link to="/map" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center text-gov-800 font-black text-sm sm:text-lg select-none">
               AI
             </div>

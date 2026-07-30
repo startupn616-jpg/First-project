@@ -1,8 +1,6 @@
 const fs   = require('fs');
 const path = require('path');
-const Groq = require('groq-sdk');
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const PROMPT = `You are an expert agricultural analyst for Tamil Nadu, India.
 Analyze this farm/field image and return ONLY a valid JSON object — no markdown, no code fences, no explanation.
@@ -36,6 +34,19 @@ Required JSON:
 Look carefully at the image and identify the exact crop (cabbage, tomato, paddy/rice, sugarcane, banana, cotton, groundnut, coconut, maize, turmeric, tapioca, onion, chilli, brinjal, mango, etc.). Be accurate.`;
 
 const analyzeImage = async (imagePath, gpsData) => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not configured. Add it to backend/.env and restart the backend.');
+  }
+
+  const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = gemini.getGenerativeModel({
+    model: process.env.GEMINI_VISION_MODEL || 'gemini-3.1-flash-lite',
+    generationConfig: {
+      maxOutputTokens: 2048,
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+    },
+  });
   const imageBuffer = await fs.promises.readFile(imagePath);
   const base64Data  = imageBuffer.toString('base64');
 
@@ -47,25 +58,14 @@ const analyzeImage = async (imagePath, gpsData) => {
     promptText += `\n\nGPS: Lat ${gpsData.lat}, Lng ${gpsData.lng}. Region is Tamil Nadu, India.`;
   }
 
-  console.log('[AI] Sending to Groq Llama Vision:', path.basename(imagePath));
+  console.log('[AI] Sending to Gemini Vision:', path.basename(imagePath));
 
-  const response = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    max_tokens: 2048,
-    temperature: 0.1,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: promptText },
-          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
-        ],
-      },
-    ],
-  });
-
-  const rawText = response.choices[0].message.content.trim();
-  console.log('[AI] Groq raw (first 200 chars):', rawText.substring(0, 200));
+  const result = await model.generateContent([
+    promptText,
+    { inlineData: { mimeType, data: base64Data } },
+  ]);
+  const rawText = result.response.text().trim();
+  console.log('[AI] Gemini raw (first 200 chars):', rawText.substring(0, 200));
 
   // Strip markdown fences, extract {...} block
   let jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -78,7 +78,7 @@ const analyzeImage = async (imagePath, gpsData) => {
     parsed = JSON.parse(jsonText);
   } catch (err) {
     console.error('[AI] JSON parse failed. Full response:\n', rawText);
-    throw new Error(`Llama returned invalid JSON: ${err.message}`);
+    throw new Error(`Gemini returned invalid JSON: ${err.message}`);
   }
 
   console.log('[AI] Success — Crop:', parsed.cropIdentified, '| Rating:', parsed.overallRating);
@@ -108,9 +108,9 @@ const analyzeImage = async (imagePath, gpsData) => {
     immediateActions_ta:  Array.isArray(parsed.immediateActions_ta) ? parsed.immediateActions_ta : [],
     preventiveMeasures_ta: [],
     keyObservations_ta:    [],
-    analysisSource:     'llama-vision',
+    analysisSource:     'gemini-vision',
     analysisTimestamp:  new Date().toISOString(),
-    note: 'AI analysis by Llama 4 Vision (Groq). Verify findings in the field.',
+    note: 'AI analysis by Gemini Vision. Verify findings in the field.',
   };
 };
 

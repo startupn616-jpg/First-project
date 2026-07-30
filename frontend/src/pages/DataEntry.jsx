@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
+import { useLanguage } from '../context/LanguageContext';
 import {
   fetchDistricts, fetchTaluks, fetchVillages,
   adminListLand, adminCreateLand, adminUpdateLand, adminDeleteLand, adminAutoFetch,
+  fetchAnalyses,
 } from '../services/api';
 
 const LAND_TYPES  = ['Dry', 'Wet', 'Garden', 'Poramboke', 'Waste'];
@@ -18,6 +20,7 @@ const EMPTY_FORM = {
 };
 
 export default function DataEntry() {
+  const { lang } = useLanguage();
   // Dropdowns
   const [districts, setDistricts] = useState([]);
   const [taluks, setTaluks]       = useState([]);
@@ -38,9 +41,15 @@ export default function DataEntry() {
   const [records, setRecords]     = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [filterVillage, setFilterVillage]   = useState('');
+  const [imageReviews, setImageReviews] = useState([]);
 
   useEffect(() => {
     fetchDistricts().then((r) => setDistricts(r.data.data)).catch(() => {});
+    fetchAnalyses()
+      .then((r) => setImageReviews((r.data.data || []).filter(
+        (item) => item.ai_raw_result?.analysisSource === 'manual-review'
+      )))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -431,6 +440,36 @@ export default function DataEntry() {
                   </div>
                 ))}
               </div>
+
+              {imageReviews.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-gov-100">
+                  <h3 className="text-xs font-bold text-gov-800 uppercase tracking-wide mb-2">
+                    ✍️ {lang === 'ta' ? 'சரிபார்க்கப்பட்ட படப் பதிவுகள்' : 'Reviewed Image Records'}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {lang === 'ta'
+                      ? 'படப் பகுப்பாய்வில் கைமுறையாகச் சரிபார்க்கப்பட்ட பதிவுகள். நில விவரங்களை உள்ளிடும்போது இவற்றை மேற்கோளாகப் பயன்படுத்தவும்.'
+                      : 'Manual corrections from Image Analyzer. Use them as a reference while entering survey details.'}
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {imageReviews.map((item) => (
+                      <div key={item.id} className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs">
+                        <div className="font-semibold text-amber-950">
+                          {lang === 'ta'
+                            ? (item.ai_raw_result?.cropIdentified_ta || item.ai_raw_result?.cropIdentified || item.ai_crop_type)
+                            : (item.ai_raw_result?.cropIdentified || item.ai_crop_type)}
+                        </div>
+                        {item.ai_raw_result?.healthStatus && (
+                          <div className="text-amber-800 mt-0.5">{item.ai_raw_result.healthStatus}</div>
+                        )}
+                        <div className="text-gray-500 mt-1">
+                          {item.survey_number ? `Survey ${item.survey_number} · ` : ''}{item.original_filename}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -65,10 +65,17 @@ CREATE TABLE IF NOT EXISTS land_parcels (
 CREATE TABLE IF NOT EXISTS image_analyses (
     id                   SERIAL PRIMARY KEY,
     land_parcel_id       INTEGER REFERENCES land_parcels(id),
+    village_id           INTEGER REFERENCES villages(id),
     survey_number        VARCHAR(20),
     image_url            VARCHAR(500),
     original_filename    VARCHAR(255),
     uploaded_by          INTEGER REFERENCES users(id),
+    latitude             DECIMAL(10,7),
+    longitude            DECIMAL(10,7),
+    altitude             DECIMAL(10,2),
+    location_label       VARCHAR(255),
+    analysis_status      VARCHAR(20) NOT NULL DEFAULT 'processing'
+                         CHECK (analysis_status IN ('processing', 'completed', 'failed')),
     ai_crop_type         VARCHAR(100),
     ai_land_condition    VARCHAR(100),
     ai_soil_quality      VARCHAR(100),
@@ -82,8 +89,13 @@ CREATE TABLE IF NOT EXISTS image_analyses (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_land_survey    ON land_parcels(survey_number);
 CREATE INDEX IF NOT EXISTS idx_land_village   ON land_parcels(village_id);
+CREATE INDEX IF NOT EXISTS idx_land_coordinates ON land_parcels(latitude, longitude)
+  WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_taluks_dist    ON taluks(district_id);
 CREATE INDEX IF NOT EXISTS idx_villages_taluk ON villages(taluk_id);
+CREATE INDEX IF NOT EXISTS idx_analysis_uploaded_status_created
+  ON image_analyses(uploaded_by, analysis_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analysis_parcel ON image_analyses(land_parcel_id);
 
 -- ============================================================
 -- SEED: Districts

@@ -1,30 +1,30 @@
 const sb = require('../config/supabase');
+const landRecord = require('../services/landRecordService');
 
 const getSurveyNumbersHandler = async (req, res) => {
   const { village_id, taluk_id, district_id } = req.query;
   try {
     let locQ = sb.from('villages').select('name, village_code, taluks(name, districts(name))');
-    if (village_id)  locQ = locQ.eq('id', village_id);
+    if (village_id) locQ = locQ.eq('id', village_id);
     else if (taluk_id) locQ = locQ.eq('taluk_id', taluk_id);
 
-    let survQ = sb.from('land_parcels').select('survey_number');
-    if (village_id)  survQ = survQ.eq('village_id', village_id);
-    if (taluk_id)    survQ = survQ.eq('villages.taluk_id', taluk_id);
-
-    const [{ data: locRows }, { data: survRows }] = await Promise.all([locQ.limit(1), survQ]);
+    const { data: locRows } = await locQ.limit(1);
     const loc = locRows?.[0] ?? null;
 
     if (!loc && village_id)
       return res.status(404).json({ success: false, message: 'Village not found.' });
 
-    const numbers = [...new Set((survRows || []).map((r) => r.survey_number))].sort();
+    const { numbers, usingMockData } = await landRecord.getSurveyNumbers({
+      village_id, taluk_id, district_id,
+    });
 
     res.json({
       success: true,
+      _usingMockData: usingMockData,
       location: loc ? {
-        village_name:  loc.name,
-        village_code:  loc.village_code,
-        taluk_name:    loc.taluks?.name,
+        village_name: loc.name,
+        village_code: loc.village_code,
+        taluk_name: loc.taluks?.name,
         district_name: loc.taluks?.districts?.name,
       } : null,
       data: numbers,
@@ -36,17 +36,14 @@ const getSurveyNumbersHandler = async (req, res) => {
 };
 
 const getSubDivisionsHandler = async (req, res) => {
-  const { village_id, survey_no } = req.query;
+  const { village_id, taluk_id, district_id, survey_no } = req.query;
   if (!survey_no) return res.status(400).json({ success: false, message: 'survey_no required.' });
 
   try {
-    let q = sb.from('land_parcels').select('sub_division').eq('survey_number', survey_no);
-    if (village_id) q = q.eq('village_id', village_id);
-    const { data, error } = await q;
-    if (error) throw error;
-
-    const divs = [...new Set((data || []).map((r) => r.sub_division).filter(Boolean))].sort();
-    res.json({ success: true, data: divs });
+    const { divs, usingMockData } = await landRecord.getSubDivisions({
+      village_id, taluk_id, district_id, survey_no,
+    });
+    res.json({ success: true, _usingMockData: usingMockData, data: divs });
   } catch (err) {
     console.error('Sub-divisions error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to fetch sub-divisions.' });
@@ -58,57 +55,22 @@ const getSurveyDetailsHandler = async (req, res) => {
   if (!survey_no) return res.status(400).json({ success: false, message: 'survey_no required.' });
 
   try {
-    let q = sb
-      .from('land_parcels')
-      .select(`
-        id, survey_number, sub_division, patta_number, owner_name,
-        area_acres, area_hectares, land_type, land_use, water_source, soil_type,
-        latitude, longitude, polygon_coords, notes,
-        villages!inner ( name, taluks!inner ( name, districts!inner ( name ) ) )
-      `)
-      .eq('survey_number', survey_no)
-      .order('sub_division');
+    const { records, usingMockData } = await landRecord.getSurveyDetails({
+      village_id, taluk_id, district_id, survey_no, sub_div,
+    });
 
-    if (village_id)  q = q.eq('village_id', village_id);
-    if (taluk_id)    q = q.eq('villages.taluk_id', taluk_id);
-    if (district_id) q = q.eq('villages.taluks.district_id', district_id);
-    if (sub_div)     q = q.eq('sub_division', sub_div);
+    const loc = records[0]?.location || null;
 
-    const { data, error } = await q;
-    if (error) throw error;
-
-    const rows = (data || []);
-    const mapped = rows.map((row) => ({
-      id:           row.id,
-      surveyNumber: row.survey_number,
-      subDivision:  row.sub_division || '',
-      fullSurveyNo: row.sub_division ? `${row.survey_number}/${row.sub_division}` : row.survey_number,
-      pattaNumber:  row.patta_number  || '—',
-      ownerName:    row.owner_name    || '—',
-      areaAcres:    row.area_acres,
-      areaHectares: row.area_hectares,
-      landType:     row.land_type     || '—',
-      landUse:      row.land_use      || '—',
-      waterSource:  row.water_source  || '—',
-      soilType:     row.soil_type     || '—',
-      notes:        row.notes || '',
-      location: {
-        district: row.villages?.taluks?.districts?.name,
-        taluk:    row.villages?.taluks?.name,
-        village:  row.villages?.name,
-      },
-      coordinates: row.latitude && row.longitude
-        ? { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) } : null,
-      polygonCoords: row.polygon_coords || null,
-    }));
-
-    const loc = rows[0] ? {
-      district: rows[0].villages?.taluks?.districts?.name,
-      taluk:    rows[0].villages?.taluks?.name,
-      village:  rows[0].villages?.name,
-    } : null;
-
-    res.json({ success: true, location: loc, data: mapped });
+    res.json({
+      success: true,
+      _usingMockData: usingMockData,
+      location: loc ? {
+        district: loc.district,
+        taluk: loc.taluk,
+        village: loc.village,
+      } : null,
+      data: records,
+    });
   } catch (err) {
     console.error('Survey details error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to fetch land details.' });
@@ -136,4 +98,32 @@ const getPattaDetailsHandler = async (req, res) => {
   }
 };
 
-module.exports = { getSurveyNumbersHandler, getSubDivisionsHandler, getSurveyDetailsHandler, getPattaDetailsHandler };
+const resolveSurveyAtPointHandler = async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return res.status(400).json({ success: false, message: 'Valid lat and lng are required.' });
+  }
+
+  try {
+    const record = await require('../services/tamilNilamService').resolveSurveyAtPoint(lat, lng);
+    res.json({ success: true, source: 'tngis', data: record });
+  } catch (err) {
+    if (err.code === 'TNGIS_NOT_CONFIGURED') {
+      return res.status(503).json({ success: false, code: err.code, message: err.message });
+    }
+    if (err.code === 'SURVEY_NOT_FOUND') {
+      return res.status(404).json({ success: false, code: err.code, message: err.message });
+    }
+    console.error('Survey point lookup error:', err.message);
+    res.status(502).json({ success: false, message: 'TNGIS survey lookup failed.' });
+  }
+};
+
+module.exports = {
+  getSurveyNumbersHandler,
+  getSubDivisionsHandler,
+  getSurveyDetailsHandler,
+  getPattaDetailsHandler,
+  resolveSurveyAtPointHandler,
+};

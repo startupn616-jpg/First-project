@@ -6,10 +6,11 @@ import {
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import Header from '../components/Header';
+import GoogleSurveyMap from '../components/GoogleSurveyMap';
 import { useLanguage } from '../context/LanguageContext';
 import {
   fetchDistricts, fetchTaluks, fetchVillages,
-  fetchSurveyNumbers, fetchSurveyDetails,
+  fetchSurveyNumbers, fetchSubDivisions, fetchSurveyDetails, resolveSurveyAtPoint,
   startDroneSession, updateDronePosition, getActiveDrones,
   stopDroneSession, fetchAnalyses,
 } from '../services/api';
@@ -38,6 +39,16 @@ const TALUK_CENTERS = {
   MTP: [11.2985, 76.9354],     'MDU-N': [9.9600, 78.1300], 'MDU-S': [9.8900, 78.1100],
   'SLM-C': [11.6643, 78.1460], 'TRY-C': [10.7905, 78.7047], 'TNJ-C': [10.7870, 79.1378],
   KBK: [10.9610, 79.3788],     'TNV-C': [8.7139, 77.7567],
+  'CHE-ALD': [12.9770, 80.2020], 'CHE-AMB': [13.0830, 80.1775], 'CHE-SHO': [12.9450, 80.2350],
+};
+
+const VILLAGE_CENTERS = {
+  'CHE-ALD-001': [12.9838, 80.2002],
+  'CHE-ALD-002': [12.9705, 80.2075],
+  'CHE-AMB-001': [13.0830, 80.1775],
+  'CHE-AMB-002': [13.1485, 80.2312],
+  'CHE-SHO-001': [12.9617, 80.2445],
+  'CHE-SHO-002': [12.9190, 80.2298],
 };
 
 const droneIcon = L.divIcon({
@@ -57,6 +68,7 @@ const PIN_COLOR = (rating) => {
 
 const WMS_URL   = import.meta.env.VITE_TNGIS_WMS_URL;
 const WMS_LAYER = import.meta.env.VITE_TNGIS_WMS_LAYER || 'tngis:survey_cadastral';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 function FlyTo({ center, zoom }) {
   const map = useMap();
@@ -70,6 +82,7 @@ export default function MapView() {
   const { t } = useLanguage();
 
   const [lands, setLands]               = useState([]);
+  const [selectedLand, setSelectedLand] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [gpsLoading, setGpsLoading]     = useState(false);
   const [gpsError, setGpsError]         = useState('');
@@ -86,7 +99,12 @@ export default function MapView() {
   const [talukId, setTalukId]         = useState('');
   const [villageId, setVillageId]     = useState('');
   const [surveyNo, setSurveyNo]       = useState('');
+  const [subDivisions, setSubDivisions] = useState([]);
+  const [subDivision, setSubDivision] = useState('');
   const [loadingSurveys, setLoadingSurveys] = useState(false);
+  const [pointSurvey, setPointSurvey] = useState(null);
+  const [pointSurveyError, setPointSurveyError] = useState('');
+  const [pointSurveyLoading, setPointSurveyLoading] = useState(false);
 
   const [trackCopied, setTrackCopied]          = useState(false);
   const [sessionName, setSessionName]         = useState('');
@@ -103,6 +121,7 @@ export default function MapView() {
   const watchRef = useRef(null);
 
   const [analysisPins, setAnalysisPins] = useState([]);
+  const showDroneTracker = false;
 
   const TN_CENTER = [10.9094, 78.6574];
 
@@ -151,6 +170,22 @@ export default function MapView() {
       .catch(() => {})
       .finally(() => setLoadingSurveys(false));
   }, [villageId]);
+
+  useEffect(() => {
+    const village = villages.find((v) => String(v.id) === String(villageId));
+    if (village?.village_code && VILLAGE_CENTERS[village.village_code]) {
+      setFlyTarget(VILLAGE_CENTERS[village.village_code]);
+      setFlyZoom(15);
+    }
+  }, [villageId, villages]);
+
+  useEffect(() => {
+    setSubDivisions([]); setSubDivision('');
+    if (!surveyNo) return;
+    fetchSubDivisions({ village_id: villageId, taluk_id: talukId, district_id: districtId, survey_no: surveyNo })
+      .then((r) => setSubDivisions(r.data.data || []))
+      .catch(() => {});
+  }, [surveyNo]);
 
   const pollDrone = useCallback(async () => {
     if (!activeSession) return;
@@ -267,10 +302,13 @@ export default function MapView() {
         taluk_id: talukId || undefined,
         district_id: districtId || undefined,
         survey_no: surveyNo || undefined,
+        sub_div: subDivision || undefined,
       });
-      setLands(res.data.data || []);
-      if (res.data.data?.length > 0 && res.data.data[0].coordinates) {
-        const c = res.data.data[0].coordinates;
+      const records = res.data.data || [];
+      setLands(records);
+      setSelectedLand(records[0] || null);
+      if (records[0]?.coordinates) {
+        const c = records[0].coordinates;
         setFlyTarget([c.lat, c.lng]);
         setFlyZoom(17);
       }
@@ -294,6 +332,19 @@ export default function MapView() {
     );
   }, [t]);
 
+  const handleMapPoint = useCallback(async ({ lat, lng }) => {
+    setFlyTarget([lat, lng]); setFlyZoom(18);
+    setPointSurvey(null); setPointSurveyError(''); setPointSurveyLoading(true);
+    try {
+      const response = await resolveSurveyAtPoint({ lat, lng });
+      setPointSurvey(response.data.data);
+    } catch (err) {
+      setPointSurveyError(err.response?.data?.message || 'Unable to resolve a survey at this point.');
+    } finally {
+      setPointSurveyLoading(false);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
@@ -302,6 +353,9 @@ export default function MapView() {
         <div className="mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800">🗺️ {t('map.title')}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('map.subtitle')}</p>
+        </div>
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Chennai demo dataset:</strong> survey, A-Register-style, Patta-style, and FMB references shown here are sample product data, not official Tamil Nilam records.
         </div>
 
         {/* Main layout — map first on mobile, sidebars wrap below */}
@@ -353,6 +407,11 @@ export default function MapView() {
                   <option value="">{loadingSurveys ? t('map.loading_map') : 'Survey Number'}</option>
                   {surveyNums.map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
+                <select value={subDivision} onChange={(e) => setSubDivision(e.target.value)}
+                  className="form-input text-xs" disabled={!surveyNo || subDivisions.length === 0}>
+                  <option value="">Subdivision (optional)</option>
+                  {subDivisions.map((division) => <option key={division || 'main'} value={division}>{division || 'Main survey'}</option>)}
+                </select>
                 <button
                   onClick={loadLands}
                   disabled={mapLoading || !villageId}
@@ -363,6 +422,20 @@ export default function MapView() {
                     : t('map.show_map')}
                 </button>
               </div>
+            </div>
+
+            <div className="gov-card">
+              <h3 className="font-semibold text-sm text-gray-700 mb-2">📍 Map Survey Lookup</h3>
+              <p className="text-xs text-gray-500">Tap a point on the Google Map to resolve its official TNGIS survey number.</p>
+              {pointSurveyLoading && <p className="mt-2 text-xs text-gov-700">Checking TNGIS…</p>}
+              {pointSurveyError && <p className="mt-2 text-xs text-amber-700">{pointSurveyError}</p>}
+              {pointSurvey && (
+                <div className="mt-2 rounded-lg bg-gov-50 border border-gov-200 p-2 text-xs text-gov-900">
+                  <div className="font-bold">Survey {pointSurvey.fullSurveyNo}</div>
+                  <div>{pointSurvey.ownerName}</div>
+                  <div>{pointSurvey.areaAcres} acres · {pointSurvey.landType}</div>
+                </div>
+              )}
             </div>
 
             {/* WMS toggle */}
@@ -416,12 +489,29 @@ export default function MapView() {
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                   {lands.map((land, i) => (
                     <button key={i} className="w-full text-left text-xs p-2 rounded-lg bg-gov-50 hover:bg-gov-100"
-                      onClick={() => land.coordinates && setFlyTarget([land.coordinates.lat, land.coordinates.lng])}>
+                      onClick={() => {
+                        setSelectedLand(land);
+                        if (land.coordinates) setFlyTarget([land.coordinates.lat, land.coordinates.lng]);
+                      }}>
                       <div className="font-bold text-gov-800">Sy {land.fullSurveyNo}</div>
                       <div className="text-gray-500 truncate">{land.ownerName}</div>
                       <div className="text-gray-400">{land.areaAcres} acres · {land.landType}</div>
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {selectedLand && (
+              <div className="gov-card text-xs space-y-1.5">
+                <h3 className="font-semibold text-gray-700">Demo Land Record</h3>
+                <div><strong>Survey:</strong> {selectedLand.fullSurveyNo}</div>
+                <div><strong>A-Register:</strong> {selectedLand.ownerName} · {selectedLand.areaAcres} acres</div>
+                <div><strong>Patta:</strong> {selectedLand.pattaNumber}</div>
+                <div><strong>Land:</strong> {selectedLand.landType} · {selectedLand.soilType}</div>
+                <div><strong>Water:</strong> {selectedLand.waterSource}</div>
+                <div className="mt-2 rounded bg-amber-50 border border-amber-200 p-2 text-amber-800">
+                  FMB Sketch: demo placeholder. Connect official TNGIS/FMB access before displaying legal sketches.
                 </div>
               </div>
             )}
@@ -431,6 +521,19 @@ export default function MapView() {
           <div className="order-1 lg:order-2">
             <div className="rounded-xl overflow-hidden border border-gray-300 shadow-lg"
               style={{ height: 'clamp(300px, 60vh, 580px)' }}>
+              {GOOGLE_MAPS_API_KEY ? (
+                <GoogleSurveyMap
+                  apiKey={GOOGLE_MAPS_API_KEY}
+                  center={flyTarget ? { lat: flyTarget[0], lng: flyTarget[1] } : { lat: TN_CENTER[0], lng: TN_CENTER[1] }}
+                  zoom={flyZoom}
+                  userLocation={userLocation}
+                  lands={lands}
+                  analysisPins={analysisPins}
+                  dronePos={dronePos}
+                  droneTrail={droneTrail}
+                  onMapClick={handleMapPoint}
+                />
+              ) : (
               <MapContainer center={TN_CENTER} zoom={7} zoomControl={false} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   attribution='Tiles &copy; Esri'
@@ -501,6 +604,8 @@ export default function MapView() {
                   const color = PIN_COLOR(rating);
                   const healthScore = pin.health_score ?? pin.healthScore ?? '—';
                   const crop = pin.crop_type || pin.cropType || 'Unknown';
+                  const survey = pin.survey_number
+                    ? `${pin.survey_number}${pin.land_parcel_id ? '' : ' (unmatched)'}` : 'No matched survey';
                   const dateStr = pin.created_at
                     ? new Date(pin.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                     : '';
@@ -516,6 +621,7 @@ export default function MapView() {
                           <strong>🚁 {crop}</strong><br />
                           Rating: <strong>{rating || '—'}</strong><br />
                           Health: {healthScore}/100<br />
+                          Survey: {survey}<br />
                           {dateStr && <span className="text-gray-500 text-xs">{dateStr}</span>}
                           {pin.location_label && <><br /><span className="text-gray-500 text-xs">📍 {pin.location_label}</span></>}
                         </div>
@@ -541,15 +647,17 @@ export default function MapView() {
                   </Marker>
                 )}
               </MapContainer>
+              )}
             </div>
             <div className="flex items-center justify-between mt-1.5 text-xs text-gray-400">
-              <span>Satellite: ESRI World Imagery · Boundaries: TNGIS WMS</span>
+              <span>{GOOGLE_MAPS_API_KEY ? 'Satellite: Google Maps' : 'Satellite: ESRI World Imagery · Boundaries: TNGIS WMS'}</span>
               <span>{t('map.pins_count', { n: analysisPins.length, s: analysisPins.length !== 1 ? 's' : '' })} · Zoom for detail</span>
             </div>
           </div>
 
           {/* ── Right: Drone Tracker (last on mobile) ── */}
           <div className="order-3 space-y-3">
+            {showDroneTracker && (
             <div className="gov-card">
               <h3 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-1.5">
                 {t('map.drone_tracker')}
@@ -657,6 +765,7 @@ export default function MapView() {
 
               {droneError && <p className="text-xs text-red-500 mt-2">{droneError}</p>}
             </div>
+            )}
 
             {/* Analysis pins summary */}
             <div className="gov-card">
@@ -668,6 +777,7 @@ export default function MapView() {
                   {analysisPins.slice(0, 15).map((pin, i) => {
                     const rating = pin.overall_rating || pin.overallRating || '—';
                     const crop = pin.crop_type || pin.cropType || 'Unknown';
+                    const survey = pin.survey_number || 'No matched survey';
                     const color = PIN_COLOR(rating);
                     return (
                       <button
@@ -685,7 +795,7 @@ export default function MapView() {
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                         <div className="min-w-0">
                           <div className="font-semibold text-gray-700 truncate">{crop}</div>
-                          <div className="text-gray-400">{rating}</div>
+                          <div className="text-gray-400">{rating} · Sy {survey}</div>
                         </div>
                       </button>
                     );
