@@ -1,6 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Header from '../components/Header';
 import { uploadImage } from '../services/api';
+import { prepareImageForUpload } from '../utils/prepareImageForUpload';
+
+const MAX_UPLOAD_MB = 25;
 
 const RATING_STYLE = {
   Excellent: 'text-green-700 bg-green-50 border-green-200',
@@ -34,8 +37,8 @@ export default function ImageUpload() {
       setError('Only JPG, PNG, and WebP images are accepted.');
       return;
     }
-    if (selectedFile.size > 25 * 1024 * 1024) {
-      setError('File too large. Maximum size is 25 MB.');
+    if (selectedFile.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setError(`File too large. Maximum size is ${MAX_UPLOAD_MB} MB.`);
       return;
     }
 
@@ -60,10 +63,14 @@ export default function ImageUpload() {
     setProgress(0);
     setError('');
 
-    const formData = new FormData();
-    formData.append('image', file);
-
     try {
+      const uploadFile = await prepareImageForUpload(file, {
+        maxBytes: 12 * 1024 * 1024,
+        maxDimension: 2560,
+      });
+      const formData = new FormData();
+      formData.append('image', uploadFile);
+
       const res = await uploadImage(formData, setProgress);
       setResult(res.data.analysis);
     } catch (err) {
@@ -129,7 +136,7 @@ export default function ImageUpload() {
                 <>
                   <div className="text-4xl mb-2">🖼️</div>
                   <p className="font-medium text-gray-600 text-sm">Drop image here or click to browse</p>
-                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 25 MB</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max {MAX_UPLOAD_MB} MB</p>
                 </>
               )}
             </div>

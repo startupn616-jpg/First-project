@@ -12,6 +12,10 @@ import {
   fetchVillages,
   saveAnalysisReview,
 } from '../services/api';
+import { prepareImageForUpload } from '../utils/prepareImageForUpload';
+
+const MAX_UPLOAD_MB = 25;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,8 +47,12 @@ function DropZone({ file, onFile, onCapture, t }) {
 
   const validate = (f) => {
     if (!f) return null;
-    if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { alert('Only JPG, PNG, WebP supported.'); return null; }
-    if (f.size > 25 * 1024 * 1024) { alert('Max 25 MB.'); return null; }
+    const type = (f.type || '').toLowerCase();
+    const name = (f.name || '').toLowerCase();
+    const okType = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', ''].includes(type)
+      || /\.(jpe?g|png|webp|heic|heif)$/i.test(name);
+    if (!okType) { alert('Only JPG, PNG, WebP supported.'); return null; }
+    if (f.size > MAX_UPLOAD_BYTES) { alert(`Max ${MAX_UPLOAD_MB} MB.`); return null; }
     return f;
   };
 
@@ -608,20 +616,30 @@ export default function DroneAnalysis() {
 
   const handleAnalyze = async () => {
     if (!file) { setError('Please select a drone image first.'); return; }
-    setError(''); setUploading(true); setProgress(0); setResult(null); setAnalysisStatus('Uploading image…');
+    setError(''); setUploading(true); setProgress(0); setResult(null); setAnalysisStatus('Preparing image…');
     setParcelLink(null); setSurveyNumber('');
     setViewingHistory(null); setSelectedHistoryId(null);
 
-    const fd = new FormData();
-    fd.append('image', file);
-    fd.append('source', imageSource || 'upload');
-    if (lat)           fd.append('latitude', lat);
-    if (lng)           fd.append('longitude', lng);
-    if (altitude)      fd.append('altitude', altitude);
-    if (locationLabel) fd.append('location_label', locationLabel);
-    if (villageId)     fd.append('village_id', villageId);
-
     try {
+      const uploadFile = await prepareImageForUpload(file, {
+        maxBytes: 12 * 1024 * 1024,
+        maxDimension: 2560,
+      });
+      if (uploadFile.size !== file.size) {
+        setAnalysisStatus(`Compressed ${(file.size / 1024 / 1024).toFixed(1)} MB -> ${(uploadFile.size / 1024 / 1024).toFixed(1)} MB. Uploading…`);
+      } else {
+        setAnalysisStatus('Uploading image…');
+      }
+
+      const fd = new FormData();
+      fd.append('image', uploadFile);
+      fd.append('source', imageSource || 'upload');
+      if (lat)           fd.append('latitude', lat);
+      if (lng)           fd.append('longitude', lng);
+      if (altitude)      fd.append('altitude', altitude);
+      if (locationLabel) fd.append('location_label', locationLabel);
+      if (villageId)     fd.append('village_id', villageId);
+
       const res = await uploadImage(fd, setProgress);
       const analysisId = res.data.analysisId;
       if (!analysisId) throw new Error('The server did not return an analysis ID.');
@@ -666,7 +684,7 @@ export default function DroneAnalysis() {
       // Scroll to results on mobile
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err) {
-      setError(err.response?.data?.message || 'Analysis failed. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Analysis failed. Please try again.');
     } finally {
       setUploading(false);
     }
