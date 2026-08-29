@@ -44,7 +44,7 @@ function DropZone({ file, onFile, onCapture, t }) {
   const validate = (f) => {
     if (!f) return null;
     if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { alert('Only JPG, PNG, WebP supported.'); return null; }
-    if (f.size > 10 * 1024 * 1024) { alert('Max 10 MB.'); return null; }
+    if (f.size > 25 * 1024 * 1024) { alert('Max 25 MB.'); return null; }
     return f;
   };
 

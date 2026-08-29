@@ -80,7 +80,8 @@ app.use((err, req, res, next) => {
   }
 
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ success: false, message: 'File too large. Max size is 10MB.' });
+    const maxMb = parseInt(process.env.MAX_FILE_SIZE_MB, 10) || 25;
+    return res.status(400).json({ success: false, message: `File too large. Max size is ${maxMb} MB.` });
   }
 
   res.status(500).json({ success: false, message: 'Internal server error.' });

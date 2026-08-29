@@ -308,7 +308,7 @@ export default function DroneTrack() {
 
       {/* ── Footer ── */}
       <div className="bg-gray-800 border-t border-gray-700 px-4 py-2 text-center text-xs text-gray-500">
-        AILAND · Tamil Nadu Agriculture & Land Survey · Drone tracking updates every 3 seconds
+        Agro Vision TN · Tamil Nadu Agriculture & Land Survey · Drone tracking updates every 3 seconds
       </div>
     </div>
   );

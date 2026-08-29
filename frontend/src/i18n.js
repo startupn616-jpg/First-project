@@ -2,10 +2,10 @@ export const T = {
   en: {
     gov_name:    'Government of Tamil Nadu',
     gov_dept:    'Department of Agriculture & Land Survey',
-    app_name:    'AILAND',
+    app_name:    'Agro Vision TN',
     app_subtitle:'Agriculture & Land Survey Portal',
     copyright:   '© {year} Government of Tamil Nadu',
-    loading_app: 'Loading AILAND...',
+    loading_app: 'Loading Agro Vision TN...',
     lang_switch: 'தமிழ்',
 
     nav: {
@@ -33,9 +33,9 @@ export const T = {
     },
 
     dashboard: {
-      badge:      'AILAND Dashboard',
+      badge:      'Agro Vision TN Dashboard',
       welcome:    'Welcome back',
-      subtitle:   'Tamil Nadu Drone Agriculture Intelligence Platform — AI-powered crop analysis, real-time GPS drone tracking, and survey land management.',
+      subtitle:   'Tamil Nadu agriculture intelligence platform — AI-powered crop analysis, GPS field mapping, and survey land management.',
       stat_districts:  'Districts',
       stat_villages:   'Villages',
       stat_analyses:   'Drone Analyses',
@@ -51,7 +51,7 @@ export const T = {
       data_badge:   'Admin',
       data_desc:    'Manually add and manage survey land records in your database.',
       open:         'Open',
-      footer:       'AILAND v2.0 · Tamil Nadu Agriculture & Land Survey · Powered by Claude AI',
+      footer:       'Agro Vision TN · Tamil Nadu Agriculture & Land Survey · Gemini Vision',
       gps_loading:  '📍 Getting your location...',
       gps_found:    'Your Location',
       gps_none:     'Tamil Nadu — GPS unavailable',
@@ -68,7 +68,7 @@ export const T = {
       capture_hint:  'Capture opens your rear camera on supported phones and requests device GPS.',
       drop_main:     'Drop drone image here',
       drop_sub:      'or click to browse',
-      drop_formats:  'JPG · PNG · WebP · Max 10 MB',
+      drop_formats:  'JPG · PNG · WebP · Max 25 MB',
       remove:        '✕ Remove',
       gps_section:   'GPS Location',
       use_gps:       '📡 Use Device GPS',
@@ -164,10 +164,10 @@ export const T = {
   ta: {
     gov_name:    'தமிழ்நாடு அரசு',
     gov_dept:    'வேளாண்மை மற்றும் நில அளவீட்டு துறை',
-    app_name:    'AILAND',
+    app_name:    'Agro Vision TN',
     app_subtitle:'வேளாண்மை மற்றும் நில அளவீட்டு போர்டல்',
     copyright:   '© {year} தமிழ்நாடு அரசு',
-    loading_app: 'AILAND ஏற்றுகிறோம்...',
+    loading_app: 'Agro Vision TN ஏற்றுகிறோம்...',
     lang_switch: 'EN',
 
     nav: {
@@ -195,9 +195,9 @@ export const T = {
     },
 
     dashboard: {
-      badge:      'AILAND முகப்பு',
+      badge:      'Agro Vision TN முகப்பு',
       welcome:    'வரவேற்கிறோம்',
-      subtitle:   'தமிழ்நாடு ட்ரோன் வேளாண்மை நுண்ணறிவு தளம் — AI பயிர் பகுப்பாய்வு, நேரலை GPS ட்ரோன் கண்காணிப்பு மற்றும் நில பதிவு மேலாண்மை.',
+      subtitle:   'தமிழ்நாடு வேளாண்மை நுண்ணறிவு தளம் — AI பயிர் பகுப்பாய்வு, GPS வரைபடம் மற்றும் நில பதிவு மேலாண்மை.',
       stat_districts:  'மாவட்டங்கள்',
       stat_villages:   'கிராமங்கள்',
       stat_analyses:   'ட்ரோன் பகுப்பாய்வுகள்',
@@ -213,7 +213,7 @@ export const T = {
       data_badge:   'நிர்வாகி',
       data_desc:    'கணக்கெடுப்பு நில பதிவுகளை கையேடாக சேர்க்கவும் மற்றும் நிர்வகிக்கவும்.',
       open:         'திற',
-      footer:       'AILAND v2.0 · தமிழ்நாடு வேளாண்மை மற்றும் நில அளவீடு · Claude AI மூலம்',
+      footer:       'Agro Vision TN · தமிழ்நாடு வேளாண்மை மற்றும் நில அளவீடு · Gemini Vision',
       gps_loading:  '📍 உங்கள் இடத்தை கண்டறிகிறோம்...',
       gps_found:    'உங்கள் இடம்',
       gps_none:     'தமிழ்நாடு — GPS கிடைக்கவில்லை',
@@ -230,7 +230,7 @@ export const T = {
       capture_hint:  'ஆதரிக்கப்படும் தொலைபேசிகளில் பின்புற கேமரா திறக்கப்படும் மற்றும் சாதன GPS கோரப்படும்.',
       drop_main:     'ட்ரோன் படத்தை இங்கே இழுத்து விடவும்',
       drop_sub:      'அல்லது கிளிக் செய்து தேர்ந்தெடுக்கவும்',
-      drop_formats:  'JPG · PNG · WebP · அதிகபட்சம் 10 MB',
+      drop_formats:  'JPG · PNG · WebP · அதிகபட்சம் 25 MB',
       remove:        '✕ நீக்கு',
       gps_section:   'GPS இடம்',
       use_gps:       '📡 சாதன GPS பயன்படுத்து',

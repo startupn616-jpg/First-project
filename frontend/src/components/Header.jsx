@@ -29,8 +29,8 @@ export default function Header() {
 
           {/* Logo */}
           <Link to="/map" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center text-gov-800 font-black text-sm sm:text-lg select-none">
-              AI
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center text-gov-800 font-black text-[10px] sm:text-xs select-none">
+              AV
             </div>
             <div>
               <div className="font-bold text-base sm:text-lg leading-tight">{t('app_name')}</div>

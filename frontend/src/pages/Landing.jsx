@@ -15,10 +15,10 @@ export default function Landing() {
     <main className="min-h-screen bg-gradient-to-br from-gov-950 via-gov-800 to-gov-600 text-white">
       <header className="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <span className="w-10 h-10 bg-white rounded-full grid place-items-center text-gov-800 font-black">AI</span>
+          <span className="w-10 h-10 bg-white rounded-full grid place-items-center text-gov-800 font-black text-xs">AV</span>
           <span>
-            <span className="font-black text-xl block leading-tight">AILAND</span>
-            <span className="text-gov-200 text-xs">Tamil Nilam Geo</span>
+            <span className="font-black text-xl block leading-tight">Agro Vision TN</span>
+            <span className="text-gov-200 text-xs">தமிழ்நாடு வேளாண்மை & நில அளவீடு</span>
           </span>
         </Link>
         {!loading && (
@@ -36,7 +36,7 @@ export default function Landing() {
           From field image to<br />survey parcel.
         </h1>
         <p className="max-w-2xl mx-auto mt-5 text-gov-100 text-base sm:text-lg leading-relaxed">
-          A single workspace for geotagged agricultural image analysis, Tamil Nilam survey lookup, and parcel mapping.
+          Agro Vision TN — a single workspace for geotagged agricultural image analysis, Tamil Nilam survey lookup, and parcel mapping.
         </p>
         <Link to={destination} className="inline-flex mt-8 rounded-xl bg-green-400 hover:bg-green-300 text-gov-950 px-6 py-3 font-bold">
           {isAuthenticated ? 'Go to dashboard' : 'Sign in to start'}
@@ -51,6 +51,16 @@ export default function Landing() {
             <p className="mt-1 text-sm text-gov-100 leading-relaxed">{description}</p>
           </article>
         ))}
+      </section>
+
+      <section className="max-w-6xl mx-auto px-5 pb-16">
+        <h2 className="text-center text-xl sm:text-2xl font-bold mb-2">தமிழ் பணிப்பாய்வு</h2>
+        <p className="text-center text-gov-200 text-sm mb-5">படம் பதிவேற்றம் → GPS இடம் → AI பகுப்பாய்வு → அதிகாரி சரிபார்ப்பு → நிலப் பதிவு</p>
+        <img
+          src="/agro-vision-tn-workflow-ta.jpg"
+          alt="Agro Vision TN Tamil workflow"
+          className="w-full rounded-2xl border border-gov-500/50 shadow-xl bg-white"
+        />
       </section>
 
       <p className="pb-6 text-center text-xs text-gov-300">

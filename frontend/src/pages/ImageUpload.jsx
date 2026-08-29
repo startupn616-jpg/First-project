@@ -34,8 +34,8 @@ export default function ImageUpload() {
       setError('Only JPG, PNG, and WebP images are accepted.');
       return;
     }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum size is 10 MB.');
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      setError('File too large. Maximum size is 25 MB.');
       return;
     }
 
@@ -129,7 +129,7 @@ export default function ImageUpload() {
                 <>
                   <div className="text-4xl mb-2">🖼️</div>
                   <p className="font-medium text-gray-600 text-sm">Drop image here or click to browse</p>
-                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 10 MB</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 25 MB</p>
                 </>
               )}
             </div>

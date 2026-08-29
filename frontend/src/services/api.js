@@ -8,7 +8,7 @@ const apiBaseUrl = configuredApiUrl.endsWith('/api')
 
 const api = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 30000,
+  timeout: 120000,
 });
 
 // Attach JWT token from localStorage to every request

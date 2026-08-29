@@ -20,7 +20,7 @@ const ProtectedRoute = ({ children }) => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-gov-700 border-t-transparent rounded-full spin mx-auto mb-3" />
-          <p className="text-gov-700 font-medium">Loading AILAND...</p>
+          <p className="text-gov-700 font-medium">Loading Agro Vision TN...</p>
         </div>
       </div>
     );
