@@ -48,6 +48,9 @@ export const fetchSubDivisions = (params) =>
 export const fetchSurveyDetails = (params) =>
   api.get('/tamilnilam/details', { params });
 
+export const fetchVillageParcels = (params) =>
+  api.get('/tamilnilam/village-parcels', { params });
+
 export const fetchPattaDetails = (params) =>
   api.get('/tamilnilam/patta', { params });
 export const resolveSurveyAtPoint = (params) =>

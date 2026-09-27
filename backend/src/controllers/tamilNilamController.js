@@ -77,6 +77,23 @@ const getSurveyDetailsHandler = async (req, res) => {
   }
 };
 
+const getVillageParcelsHandler = async (req, res) => {
+  const { village_id, taluk_id, district_id } = req.query;
+  if (!village_id && !taluk_id && !district_id) {
+    return res.status(400).json({ success: false, message: 'village_id, taluk_id or district_id required.' });
+  }
+
+  try {
+    const { records, location } = await landRecord.getVillageParcels({
+      village_id, taluk_id, district_id,
+    });
+    res.json({ success: true, location, data: records });
+  } catch (err) {
+    console.error('Village parcels error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch village patta map.' });
+  }
+};
+
 const getPattaDetailsHandler = async (req, res) => {
   const { village_id, patta_no } = req.query;
   if (!patta_no) return res.status(400).json({ success: false, message: 'patta_no required.' });
@@ -124,6 +141,7 @@ module.exports = {
   getSurveyNumbersHandler,
   getSubDivisionsHandler,
   getSurveyDetailsHandler,
+  getVillageParcelsHandler,
   getPattaDetailsHandler,
   resolveSurveyAtPointHandler,
 };

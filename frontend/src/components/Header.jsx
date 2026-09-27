@@ -11,9 +11,10 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const NAV_LINKS = [
-    { to: '/drone',      label: t('nav.drone'),       icon: '🚁' },
-    { to: '/map',        label: t('nav.map'),         icon: '🗺️' },
-    { to: '/data-entry', label: t('nav.data_entry'),  icon: '📝' },
+    { to: '/drone',        label: t('nav.drone'),        icon: '🚁' },
+    { to: '/map',          label: t('nav.map'),          icon: '🗺️' },
+    { to: '/survey-maps',  label: t('nav.survey_maps'),  icon: '📐' },
+    { to: '/data-entry',   label: t('nav.data_entry'),   icon: '📝' },
   ];
 
   const handleLogout = () => { logout(); navigate('/login'); };

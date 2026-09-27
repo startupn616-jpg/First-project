@@ -15,11 +15,13 @@ export default function GoogleSurveyMap({
   center,
   zoom,
   userLocation,
-  lands,
-  analysisPins,
+  lands = [],
+  analysisPins = [],
   dronePos,
-  droneTrail,
+  droneTrail = [],
   onMapClick,
+  onLandClick,
+  selectedLand,
 }) {
   const mapRef = useRef(null);
   const { isLoaded, loadError } = useJsApiLoader({
@@ -34,11 +36,25 @@ export default function GoogleSurveyMap({
   }), []);
 
   useEffect(() => {
-    if (mapRef.current && center) {
+    if (!mapRef.current || !window.google?.maps) return;
+    if (lands.length) {
+      const bounds = new window.google.maps.LatLngBounds();
+      lands.forEach((land) => {
+        (land.polygonCoords || []).forEach((point) => {
+          if (point?.lat != null) bounds.extend(point);
+        });
+        if (land.coordinates) bounds.extend(land.coordinates);
+      });
+      if (!bounds.isEmpty()) {
+        mapRef.current.fitBounds(bounds, 48);
+        return;
+      }
+    }
+    if (center) {
       mapRef.current.panTo(center);
       mapRef.current.setZoom(zoom);
     }
-  }, [center, zoom]);
+  }, [center, zoom, lands]);
 
   if (loadError) {
     return <div className="h-full grid place-items-center bg-red-50 p-5 text-center text-sm text-red-700">Google Maps could not load. Verify the API key, Maps JavaScript API access, billing, and localhost referrer restriction.</div>;
@@ -69,25 +85,47 @@ export default function GoogleSurveyMap({
       )}
 
       {lands.map((land) => {
+        const active = selectedLand && (
+          selectedLand.id === land.id || selectedLand.fullSurveyNo === land.fullSurveyNo
+        );
+        if (land.polygonCoords?.length > 2) {
+          return (
+            <PolygonF
+              key={`boundary-${land.id || land.fullSurveyNo}`}
+              paths={land.polygonCoords}
+              options={{
+                strokeColor: active ? '#facc15' : '#22d3ee',
+                strokeWeight: active ? 3 : 2,
+                fillColor: active ? '#facc15' : '#22d3ee',
+                fillOpacity: active ? 0.35 : 0.16,
+              }}
+              onClick={() => onLandClick?.(land)}
+            />
+          );
+        }
+        return null;
+      })}
+
+      {lands.map((land) => {
         if (!land.coordinates) return null;
+        const active = selectedLand && (
+          selectedLand.id === land.id || selectedLand.fullSurveyNo === land.fullSurveyNo
+        );
         return (
           <MarkerF
             key={`parcel-${land.id || land.fullSurveyNo}`}
             position={land.coordinates}
-            title={`Survey ${land.fullSurveyNo}`}
+            title={`Survey ${land.fullSurveyNo} · Patta ${land.pattaNumber || ''}`}
+            label={{
+              text: String(land.surveyNumber || land.fullSurveyNo),
+              color: active ? '#422006' : '#ffffff',
+              fontSize: '11px',
+              fontWeight: '700',
+            }}
+            onClick={() => onLandClick?.(land)}
           />
         );
       })}
-
-      {lands.map((land) => (
-        land.polygonCoords?.length > 2 && (
-          <PolygonF
-            key={`boundary-${land.id || land.fullSurveyNo}`}
-            paths={land.polygonCoords}
-            options={{ strokeColor: '#00e5ff', strokeWeight: 2.5, fillColor: '#00e5ff', fillOpacity: 0.15 }}
-          />
-        )
-      ))}
 
       {analysisPins.map((pin) => {
         const lat = Number(pin.latitude);

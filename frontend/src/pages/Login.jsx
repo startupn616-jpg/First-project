@@ -128,14 +128,6 @@ export default function Login() {
               ) : t('login.submit')}
             </button>
           </form>
-
-          <div className="mt-6 p-3 bg-gov-50 rounded-lg border border-gov-100">
-            <p className="text-xs font-semibold text-gov-700 mb-1.5">{t('login.test_creds')}</p>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              <div>👤 <strong>admin</strong> / Admin@123</div>
-              <div>👤 <strong>officer1</strong> / Officer@123</div>
-            </div>
-          </div>
         </div>
       </div>
 

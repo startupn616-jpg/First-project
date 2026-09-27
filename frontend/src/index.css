@@ -7,7 +7,7 @@
 .leaflet-container {
   height: 100%;
   width: 100%;
-  border-radius: 0.5rem;
+  border-radius: 0;
 }
 
 @layer base {
@@ -70,4 +70,8 @@
 }
 .fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+.gi-cadastral-grid {
+  pointer-events: none;
 }

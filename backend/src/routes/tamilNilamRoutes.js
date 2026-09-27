@@ -5,6 +5,7 @@ const {
   getSurveyNumbersHandler,
   getSubDivisionsHandler,
   getSurveyDetailsHandler,
+  getVillageParcelsHandler,
   getPattaDetailsHandler,
   resolveSurveyAtPointHandler,
 } = require('../controllers/tamilNilamController');
@@ -14,8 +15,9 @@ router.use(authMiddleware);
 
 router.get('/survey-numbers', getSurveyNumbersHandler);
 router.get('/sub-divisions',  getSubDivisionsHandler);
-router.get('/details',        getSurveyDetailsHandler);
-router.get('/patta',          getPattaDetailsHandler);
+router.get('/details',         getSurveyDetailsHandler);
+router.get('/village-parcels', getVillageParcelsHandler);
+router.get('/patta',           getPattaDetailsHandler);
 router.get('/at-point',       resolveSurveyAtPointHandler);
 
 module.exports = router;

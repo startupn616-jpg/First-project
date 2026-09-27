@@ -36,17 +36,18 @@ function enrichWithCropInfo(record, seed = 0) {
   const crop = MOCK_CROPS[seed % MOCK_CROPS.length];
   return {
     ...record,
-    ownerRelation: 'Son of',
+    fatherName: record.fatherName || '—',
+    ownerRelation: record.ownerRelation || 'Son / Daughter of',
     poramboke: record.landType === 'Poramboke',
-    taxPerHectare: (120 + (seed % 80)).toFixed(2),
+    taxPerHectare: record.taxPerHectare || (120 + (seed % 80)).toFixed(2),
+    classification: record.classification || record.landType || '—',
     primarySoilType: record.soilType || 'Red Loam',
     secondarySoilType: 'Sandy Loam',
-    cropInfo: crop,
-    documents: {
-      fmbSketchUrl: null,
-      pattaUrl: null,
+    cropInfo: record.cropInfo || crop,
+    documents: record.documents || {
       aRegisterUrl: 'https://eservices.tn.gov.in/eservicesnew/land/areg.html',
       fmbPortalUrl: 'https://eservices.tn.gov.in/eservicesnew/land/chittaCheckNewRuralFMB_en.html',
+      pattaUrl: 'https://eservices.tn.gov.in/eservicesnew/land/patta.html',
     },
   };
 }
@@ -80,6 +81,16 @@ function mapDbRow(row) {
 }
 
 async function getSurveyNumbers({ village_id, taluk_id, district_id }) {
+  const dummyVillage = require('../utils/dummyLocations').parseDummyVillage(village_id);
+  if (dummyVillage) {
+    const numbers = await tngis.getSurveyNumbers(
+      dummyVillage.distCode,
+      `${dummyVillage.distCode}-T${dummyVillage.talukIndex}`,
+      String(village_id)
+    );
+    return { numbers, usingMockData: true };
+  }
+
   let survQ = sb.from('land_parcels').select('survey_number');
   if (village_id) survQ = survQ.eq('village_id', village_id);
 
@@ -99,6 +110,17 @@ async function getSurveyNumbers({ village_id, taluk_id, district_id }) {
 }
 
 async function getSubDivisions({ village_id, taluk_id, district_id, survey_no }) {
+  const dummyVillage = require('../utils/dummyLocations').parseDummyVillage(village_id);
+  if (dummyVillage) {
+    const divs = await tngis.getSubDivisions(
+      dummyVillage.distCode,
+      `${dummyVillage.distCode}-T${dummyVillage.talukIndex}`,
+      String(village_id),
+      survey_no
+    );
+    return { divs, usingMockData: true };
+  }
+
   let q = sb.from('land_parcels').select('sub_division').eq('survey_number', survey_no);
   if (village_id) q = q.eq('village_id', village_id);
   const { data } = await q;
@@ -155,9 +177,179 @@ async function getSurveyDetails({ village_id, taluk_id, district_id, survey_no, 
   return { records, usingMockData: true };
 }
 
+async function getVillageParcels({ village_id, taluk_id, district_id }) {
+  if (!village_id && !taluk_id && !district_id) return { records: [], location: null };
+
+  const dummyLoc = require('../utils/dummyLocations');
+  const dummyVillage = dummyLoc.parseDummyVillage(village_id);
+  if (dummyVillage) {
+    const { data: dist } = await sb
+      .from('districts')
+      .select('name, code')
+      .eq('code', dummyVillage.distCode)
+      .maybeSingle();
+    const villageName = `${dist?.name || dummyVillage.distCode} Village ${dummyVillage.villageIndex + 1}`;
+    const talukName = `${dist?.name || dummyVillage.distCode} ${['North', 'South', 'East', 'West', 'Central'][dummyVillage.talukIndex] || ''}`;
+    const records = tngis.mockVillageCadastral(
+      dummyVillage.distCode,
+      `${dummyVillage.distCode}-T${dummyVillage.talukIndex}`,
+      `dv-${dummyVillage.distCode}-${dummyVillage.talukIndex}-${dummyVillage.villageIndex}`,
+      villageName
+    ).map((row) => ({
+      ...row,
+      location: {
+        district: dist?.name || dummyVillage.distCode,
+        taluk: talukName.trim(),
+        village: villageName,
+      },
+    }));
+    return {
+      records,
+      location: { village: villageName, taluk: talukName.trim(), district: dist?.name, districtCode: dummyVillage.distCode },
+    };
+  }
+
+  if (!village_id && taluk_id) {
+    if (String(taluk_id).startsWith('dt_')) {
+      const parsed = dummyLoc.parseDummyTaluk(taluk_id);
+      const { data: dist } = parsed
+        ? await sb.from('districts').select('name, code').eq('code', parsed.distCode).maybeSingle()
+        : { data: null };
+      const taluk = dummyLoc.dummyTalukFromId(taluk_id, dist?.name);
+      const records = tngis.mockVillageCadastral(
+        parsed?.distCode || dist?.code || 'KRG',
+        taluk?.code || 'T0',
+        `${taluk?.code || 'T0'}-HQ`,
+        taluk?.name
+      );
+      return { records, location: { taluk: taluk?.name, district: dist?.name, districtCode: dist?.code } };
+    }
+
+    const { data: taluk } = await sb
+      .from('taluks')
+      .select('name, code, districts(name, code)')
+      .eq('id', taluk_id)
+      .maybeSingle();
+    const distCode = taluk?.districts?.code || 'KRG';
+    const records = tngis.mockVillageCadastral(
+      distCode,
+      taluk?.code || distCode,
+      `${taluk?.code || distCode}-HQ`,
+      taluk?.name
+    );
+    return {
+      records,
+      location: { taluk: taluk?.name, district: taluk?.districts?.name, districtCode: distCode },
+    };
+  }
+
+  if (!village_id && district_id) {
+    const { data: dist } = await sb
+      .from('districts')
+      .select('name, code')
+      .eq('id', district_id)
+      .maybeSingle();
+    const distCode = dist?.code || 'KRG';
+    const records = tngis.mockVillageCadastral(
+      distCode,
+      distCode,
+      `${distCode}-HQ`,
+      dist?.name ? `${dist.name}` : distCode
+    );
+    return {
+      records,
+      location: {
+        village: dist?.name,
+        district: dist?.name,
+        districtCode: distCode,
+      },
+    };
+  }
+
+  const { data: village } = await sb
+    .from('villages')
+    .select('name, village_code, taluks(name, code, districts(name, code))')
+    .eq('id', village_id)
+    .maybeSingle();
+
+  const location = village ? {
+    village: village.name,
+    villageCode: village.village_code,
+    taluk: village.taluks?.name,
+    talukCode: village.taluks?.code,
+    district: village.taluks?.districts?.name,
+    districtCode: village.taluks?.districts?.code,
+  } : null;
+
+  const { data: rows, error } = await sb
+    .from('land_parcels')
+    .select(`
+      id, survey_number, sub_division, patta_number, owner_name,
+      area_acres, area_hectares, land_type, land_use, water_source, soil_type,
+      latitude, longitude, polygon_coords, notes,
+      villages!inner ( name, taluks!inner ( name, districts!inner ( name, code ) ) )
+    `)
+    .eq('village_id', village_id)
+    .order('survey_number');
+  if (error) throw error;
+
+  const codes = await resolveLocationCodes(village_id, taluk_id, district_id);
+  const generated = tngis.mockVillageCadastral(
+    codes.distCode,
+    codes.talukCode,
+    codes.villageCode,
+    village?.name
+  );
+
+  const dbBySurvey = new Map((rows || []).map((row) => [String(row.survey_number), mapDbRow(row)]));
+  const sheetCenter = generated[0]?.coordinates;
+  const farFromSheet = (coords) => (
+    sheetCenter && coords
+    && (Math.abs(Number(coords.lat) - Number(sheetCenter.lat)) > 0.02
+      || Math.abs(Number(coords.lng) - Number(sheetCenter.lng)) > 0.02)
+  );
+
+  const records = generated.map((plot, index) => {
+    const stored = dbBySurvey.get(String(plot.surveyNumber));
+    if (!stored) return plot;
+    const keepSheet = farFromSheet(stored.coordinates);
+    const polygon = keepSheet
+      ? plot.polygonCoords
+      : (stored.polygonCoords?.length
+        ? stored.polygonCoords
+        : (stored.coordinates
+          ? tngis.plotFromPoint(stored.coordinates, stored.areaAcres, index)
+          : plot.polygonCoords));
+    return {
+      ...plot,
+      ...stored,
+      location: {
+        district: stored.location?.district || location?.district,
+        taluk: stored.location?.taluk || location?.taluk,
+        village: stored.location?.village || location?.village,
+      },
+      coordinates: keepSheet ? plot.coordinates : (stored.coordinates || plot.coordinates),
+      polygonCoords: polygon,
+    };
+  });
+
+  (rows || []).forEach((row, index) => {
+    if (records.some((item) => String(item.surveyNumber) === String(row.survey_number))) return;
+    const stored = mapDbRow(row);
+    if (farFromSheet(stored.coordinates)) return;
+    if (!stored.polygonCoords?.length && stored.coordinates) {
+      stored.polygonCoords = tngis.plotFromPoint(stored.coordinates, stored.areaAcres, index);
+    }
+    records.push(stored);
+  });
+
+  return { records, location };
+}
+
 module.exports = {
   getSurveyNumbers,
   getSubDivisions,
   getSurveyDetails,
+  getVillageParcels,
   resolveLocationCodes,
 };

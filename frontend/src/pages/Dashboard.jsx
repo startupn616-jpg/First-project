@@ -43,6 +43,11 @@ export default function Dashboard() {
       desc: t('dashboard.map_desc'), borderColor: 'border-green-300', hoverBorder: 'hover:border-green-500', bgGradient: 'from-green-50 to-emerald-50',
     },
     {
+      to: '/survey-maps', icon: '📐',
+      title: t('dashboard.survey_title'), badge: t('dashboard.survey_badge'), badgeClass: 'badge-blue',
+      desc: t('dashboard.survey_desc'), borderColor: 'border-indigo-300', hoverBorder: 'hover:border-indigo-500', bgGradient: 'from-indigo-50 to-sky-50',
+    },
+    {
       to: '/data-entry', icon: '📝',
       title: t('dashboard.data_title'), badge: t('dashboard.data_badge'), badgeClass: 'badge-yellow',
       desc: t('dashboard.data_desc'), borderColor: 'border-yellow-300', hoverBorder: 'hover:border-yellow-500', bgGradient: 'from-yellow-50 to-amber-50',
